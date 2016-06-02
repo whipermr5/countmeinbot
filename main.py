@@ -126,7 +126,7 @@ class MainPage(webapp2.RequestHandler):
 
     def handle_message(self, message):
         u = message.from_user
-        update_user(id=u.id, first_name=u.first_name, last_name=u.last_name, username=u.username)
+        update_user(u.id, first_name=u.first_name, last_name=u.last_name, username=u.username)
         uid = str(message.chat.id)
 
         if not message.text:
@@ -197,9 +197,7 @@ class MainPage(webapp2.RequestHandler):
         poll_id = int(params[0])
         opt_id = int(params[1])
 
-        poll = get_poll(poll_id)
-        status = poll.options[opt_id].toggle(uid, first_name, last_name)
-        poll.put()
+        (poll, status) = toggle_poll(poll_id, opt_id, uid, first_name, last_name)
 
         updated_text = poll.render_text()
         buttons = poll.build_vote_buttons()
@@ -216,8 +214,15 @@ class MainPage(webapp2.RequestHandler):
         self.response.write(output)
         logging.info('Answered callback query!')
 
-def get_poll(id):
-    key = ndb.Key('Poll', id)
+@ndb.transactional
+def toggle_poll(poll_id, opt_id, uid, first_name, last_name):
+    poll = get_poll(poll_id)
+    status = poll.options[opt_id].toggle(uid, first_name, last_name)
+    poll.put()
+    return (poll, status)
+
+def get_poll(pid):
+    key = ndb.Key('Poll', pid)
     return key.get()
 
 def send_poll(uid, poll, mode='vote'):
@@ -225,11 +230,11 @@ def send_poll(uid, poll, mode='vote'):
     poll_buttons = poll.build_vote_buttons() if mode == 'vote' else poll.build_admin_buttons()
     send_message(0.5, chat_id=uid, text=poll_text, reply_markup=poll_buttons)
 
-def update_user(id, **kwargs):
-    key = ndb.Key('User', id)
+def update_user(uid, **kwargs):
+    key = ndb.Key('User', uid)
     user = key.get()
     if not user:
-        user = User(id=id)
+        user = User(id=uid)
     user.populate(**kwargs)
     user.put()
 
