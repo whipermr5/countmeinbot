@@ -51,7 +51,7 @@ class Poll(ndb.Model):
     def build_admin_buttons(self):
         return self.build_vote_buttons()
 
-class Option:
+class Option(object):
     def __init__(self, title, people=OrderedDict()):
         self.title = title
         self.people = people
