@@ -1,0 +1,5 @@
+queue:
+- name: outbox
+  rate: 20/s
+  bucket_size: 40
+  max_concurrent_requests: 20
