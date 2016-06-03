@@ -151,9 +151,9 @@ class MainPage(webapp2.RequestHandler):
     PREMATURE_DONE = 'Sorry, a poll needs to have at least one option to work.'
     FIRST_OPTION = 'New poll: \'{}\'\n\nPlease send me the first answer option.'
     NEXT_OPTION = 'Good. Now send me another answer option, or /done to finish.'
-    HELP = 'This bot will help you create polls. Use /start to create a poll here, ' + \
-           'then publish it to groups or send it to individual friends.\n\n' + \
-           'Send /polls to manage your existing polls.'
+    HELP = 'This bot will help you create polls where people can leave their names. ' + \
+           'Use /start to create a poll here, then publish it to groups or send it to' + \
+           'individual friends.\n\nSend /polls to manage your existing polls.'
     DONE = u'\U0001f44d' + ' Poll created. You can now publish it to a group or send it to ' + \
            'your friends in a private message. To do this, tap the button below or start ' + \
            'your message in any other chat with @countmeinbot and select one of your polls to send.'

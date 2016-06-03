@@ -8,6 +8,15 @@ handlers:
 - url: /(sendMessage|editMessageText|editMessageReplyMarkup)
   script: main.app
   login: admin
+
+- url: /favicon.ico
+  static_files: favicon.ico
+  upload: favicon.ico
+
+- url: /thumb.jpg
+  static_files: thumb.jpg
+  upload: thumb.jpg
+
 - url: /.*
   script: main.app
 
