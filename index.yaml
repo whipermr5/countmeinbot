@@ -13,4 +13,10 @@ indexes:
 - kind: Poll
   properties:
   - name: admin_uid
+  - name: created
+    direction: desc
+
+- kind: Poll
+  properties:
+  - name: admin_uid
   - name: title_short

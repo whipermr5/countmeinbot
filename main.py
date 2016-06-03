@@ -38,21 +38,30 @@ class Poll(ndb.Model):
             output += option.title + ' / '
         return output.rstrip(' / ')
 
-    def render_text(self):
-        output = make_html_bold(self.title) + '\n\n'
+    def generate_respondents_summary(self):
         all_uids = []
         for option in self.options:
-            output += make_html_bold(option.title) + '\n'
-            output += strip_html_symbols(option.generate_name_list()) + '\n\n'
             all_uids += option.people.keys()
         num_respondents = len(set(all_uids))
         if num_respondents == 0:
-            respondents_summary = 'Nobody has responded'
+            return 'Nobody responded'
         elif num_respondents == 1:
-            respondents_summary = '1 person responded'
+            return '1 person responded'
         else:
-            respondents_summary = '{} people responded'.format(num_respondents)
-        output += u'\U0001f465' + ' ' + respondents_summary
+            return '{} people responded'.format(num_respondents)
+
+    def generate_poll_summary_with_link(self):
+        short_bold_title = make_html_bold(self.title[:65])
+        respondents_summary = self.generate_respondents_summary()
+        link = '/view_{}'.format(self.key.id())
+        return '{} {}.\n{}'.format(short_bold_title, respondents_summary, link)
+
+    def render_text(self):
+        output = make_html_bold(self.title) + '\n\n'
+        for option in self.options:
+            output += make_html_bold(option.title) + '\n'
+            output += strip_html_symbols(option.generate_name_list()) + '\n\n'
+        output += u'\U0001f465' + ' ' + self.generate_respondents_summary()
         return output
 
     def build_vote_buttons(self, admin=False):
@@ -192,6 +201,29 @@ class MainPage(webapp2.RequestHandler):
             else:
                 send_message(chat_id=uid, text=self.HELP)
 
+        elif text == '/polls':
+            output = make_html_bold('Your polls') + '\n\n'
+            query = Poll.query(Poll.admin_uid == uid).order(-Poll.created)
+            i = 0
+            for poll in query.fetch(50):
+                i += 1
+                output += '{}. {}\n\n'.format(i, poll.generate_poll_summary_with_link())
+            output += 'Use /start to create a new poll.'
+
+            send_message(chat_id=uid, text=output, parse_mode='HTML')
+            memcache.delete(uid)
+
+        elif text.startswith('/view_'):
+            try:
+                poll_id = int(text[6:])
+                poll = get_poll(poll_id)
+                if poll.admin_uid != uid:
+                    raise
+                deliver_poll(uid, poll)
+                memcache.delete(uid)
+            except:
+                send_message(chat_id=uid, text=self.HELP)
+
         else:
             if not responding_to:
                 send_message(chat_id=uid, text=self.HELP)
@@ -200,7 +232,9 @@ class MainPage(webapp2.RequestHandler):
                 new_poll = Poll(admin_uid=uid, title=text, title_short=text[:512].lower())
                 poll_key = new_poll.put()
                 poll_id = str(poll_key.id())
-                send_message(chat_id=uid, text=self.FIRST_OPTION.format(text))
+                bold_title = make_html_bold(text)
+                send_message(chat_id=uid, text=self.FIRST_OPTION.format(bold_title),
+                             parse_mode='HTML')
                 memcache.set(uid, value='OPT ' + poll_id, time=3600)
 
             elif responding_to.startswith('OPT '):
