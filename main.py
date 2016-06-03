@@ -240,6 +240,12 @@ class MainPage(webapp2.RequestHandler):
                 edit_message_text(chat_id=chat_id, message_id=mid, text=updated_text,
                                   reply_markup=buttons)
 
+        else:
+            if imid:
+                edit_message_reply_markup(inline_message_id=imid)
+            else:
+                edit_message_reply_markup(chat_id=chat_id, message_id=mid)
+
         payload = {'method': 'answerCallbackQuery', 'callback_query_id': qid, 'text': status}
         output = json.dumps(payload)
         self.response.headers['Content-Type'] = 'application/json'
