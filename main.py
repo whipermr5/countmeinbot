@@ -23,6 +23,7 @@ class User(ndb.Model):
 class Poll(ndb.Model):
     admin_uid = ndb.StringProperty()
     title = ndb.TextProperty()
+    title_short = ndb.StringProperty()
     active = ndb.BooleanProperty(default=True)
     multi = ndb.BooleanProperty(default=True, indexed=False)
 
@@ -160,7 +161,7 @@ class MainPage(webapp2.RequestHandler):
         text = message.text.encode('utf-8')
         responding_to = memcache.get(uid)
 
-        if text == '/start':
+        if text.startswith('/start'):
             send_message(chat_id=uid, text=self.NEW_POLL)
             memcache.set(uid, value='START', time=3600)
 
@@ -183,7 +184,7 @@ class MainPage(webapp2.RequestHandler):
                 send_message(chat_id=uid, text=self.HELP)
 
             elif responding_to == 'START':
-                new_poll = Poll(admin_uid=uid, title=text)
+                new_poll = Poll(admin_uid=uid, title=text, title_short=text[:512].lower())
                 poll_key = new_poll.put()
                 poll_id = str(poll_key.id())
                 send_message(chat_id=uid, text=self.FIRST_OPTION.format(text))
@@ -248,12 +249,15 @@ class MainPage(webapp2.RequestHandler):
 
     def handle_inline_query(self, inline_query):
         qid = inline_query.id
-        # query_text = inline_query.query
+        text = inline_query.query
 
         uid = str(inline_query.from_user.id)
-        query = Poll.query(Poll.admin_uid == uid).order(-Poll.created)
+        query = Poll.query(Poll.admin_uid == uid,
+                           Poll.title_short >= text, Poll.title_short < text + u'\ufffd')
+
         results = []
-        for poll in query.fetch(50):
+        polls = sorted(query.fetch(50), key=lambda poll: poll.created, reverse=True)
+        for poll in polls:
             qr_id = str(poll.key.id())
             qr_title = poll.title
             qr_description = poll.generate_options_summary()
@@ -265,7 +269,8 @@ class MainPage(webapp2.RequestHandler):
             results.append(result)
 
         payload = {'method': 'answerInlineQuery', 'inline_query_id': qid, 'results': results,
-                   'switch_pm_text': 'Create new poll', 'cache_time': 0}
+                   'switch_pm_text': 'Create new poll', 'switch_pm_parameter': 'new',
+                   'cache_time': 0}
         output = json.dumps(payload)
         self.response.headers['Content-Type'] = 'application/json'
         self.response.write(output)
