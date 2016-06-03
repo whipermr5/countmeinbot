@@ -180,7 +180,8 @@ class MainPage(webapp2.RequestHandler):
         if not message.text:
             return
 
-        text = message.text.encode('utf-8')
+        raw_text = message.text
+        text = raw_text.encode('utf-8')
         responding_to = memcache.get(uid)
 
         if text.startswith('/start'):
@@ -240,7 +241,7 @@ class MainPage(webapp2.RequestHandler):
             elif responding_to.startswith('OPT '):
                 poll_id = int(responding_to[4:])
                 poll = get_poll(poll_id)
-                poll.options.append(Option(message.text))
+                poll.options.append(Option(raw_text))
                 poll.put()
                 option_count = len(poll.options)
                 if option_count < 10:
