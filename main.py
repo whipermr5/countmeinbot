@@ -11,6 +11,7 @@ from secrets import BOT_TOKEN
 bot = telegram.Bot(token=BOT_TOKEN)
 
 RECOGNISED_ERRORS = ['Message is not modified']
+THUMB_URL = 'https://countmeinbot.appspot.com/thumb.jpg'
 
 class User(ndb.Model):
     first_name = ndb.TextProperty()
@@ -354,7 +355,7 @@ class MainPage(webapp2.RequestHandler):
             reply_markup = poll.build_vote_buttons()
             result = {'type': 'article', 'id': qr_id, 'title': qr_title,
                       'description': qr_description, 'input_message_content': content,
-                      'reply_markup': reply_markup}
+                      'reply_markup': reply_markup, 'thumb_url': THUMB_URL}
             results.append(result)
 
         payload = {'method': 'answerInlineQuery', 'inline_query_id': qid, 'results': results,
