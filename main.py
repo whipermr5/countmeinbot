@@ -39,11 +39,11 @@ class Poll(ndb.Model):
         return output.rstrip(' / ')
 
     def render_text(self):
-        output = self.title + '\n\n'
+        output = make_html_bold(self.title) + '\n\n'
         all_uids = []
         for option in self.options:
-            output += option.title + '\n'
-            output += option.generate_name_list() + '\n\n'
+            output += make_html_bold(option.title) + '\n'
+            output += strip_html_symbols(option.generate_name_list()) + '\n\n'
             all_uids += option.people.keys()
         num_respondents = len(set(all_uids))
         if num_respondents == 0:
@@ -235,10 +235,11 @@ class MainPage(webapp2.RequestHandler):
             buttons = poll.build_vote_buttons()
 
             if imid:
-                edit_message_text(inline_message_id=imid, text=updated_text, reply_markup=buttons)
+                edit_message_text(inline_message_id=imid, text=updated_text, reply_markup=buttons,
+                                  parse_mode='HTML')
             else:
                 edit_message_text(chat_id=chat_id, message_id=mid, text=updated_text,
-                                  reply_markup=buttons)
+                                  reply_markup=buttons, parse_mode='HTML')
 
         else:
             if imid:
@@ -267,7 +268,7 @@ class MainPage(webapp2.RequestHandler):
             qr_id = str(poll.key.id())
             qr_title = poll.title
             qr_description = poll.generate_options_summary()
-            content = {'message_text': poll.render_text()}
+            content = {'message_text': poll.render_text(), 'parse_mode': 'HTML'}
             reply_markup = poll.build_vote_buttons()
             result = {'type': 'article', 'id': qr_id, 'title': qr_title,
                       'description': qr_description, 'input_message_content': content,
@@ -301,7 +302,7 @@ def get_poll(pid):
 def send_poll(uid, poll, mode='vote'):
     poll_text = poll.render_text()
     poll_buttons = poll.build_vote_buttons() if mode == 'vote' else poll.build_admin_buttons()
-    send_message(0.5, chat_id=uid, text=poll_text, reply_markup=poll_buttons)
+    send_message(0.5, chat_id=uid, text=poll_text, reply_markup=poll_buttons, parse_mode='HTML')
 
 def update_user(uid, **kwargs):
     key = ndb.Key('User', uid)
@@ -328,6 +329,12 @@ def edit_message_reply_markup(**kwargs):
     taskqueue.add(queue_name='outbox', url='/editMessageReplyMarkup', payload=payload)
     logging.info('Message reply markup edit queued')
     logging.debug(payload)
+
+def strip_html_symbols(text):
+    return text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+
+def make_html_bold(text):
+    return '<b>' + strip_html_symbols(text) + '</b>'
 
 app = webapp2.WSGIApplication([
     ('/', FrontPage),
