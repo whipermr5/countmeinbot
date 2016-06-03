@@ -10,6 +10,8 @@ from collections import OrderedDict
 from secrets import BOT_TOKEN
 bot = telegram.Bot(token=BOT_TOKEN)
 
+RECOGNISED_ERRORS = ['Message is not modified']
+
 class User(ndb.Model):
     first_name = ndb.TextProperty()
     last_name = ndb.TextProperty()
@@ -29,13 +31,27 @@ class Poll(ndb.Model):
     created = ndb.DateTimeProperty(auto_now_add=True)
     updated = ndb.DateTimeProperty(auto_now=True, indexed=False)
 
+    def generate_options_summary(self):
+        output = ''
+        for option in self.options:
+            output += option.title + ' / '
+        return output.rstrip(' / ')
+
     def render_text(self):
         output = self.title + '\n\n'
+        all_uids = []
         for option in self.options:
             output += option.title + '\n'
             output += option.generate_name_list() + '\n\n'
-        plural = 's' if len(self.options) > 1 else ''
-        output += 'Add or remove your name using the button{} below!'.format(plural)
+            all_uids += option.people.keys()
+        num_respondents = len(set(all_uids))
+        if num_respondents == 0:
+            respondents_summary = 'Nobody has responded'
+        elif num_respondents == 1:
+            respondents_summary = '1 person responded'
+        else:
+            respondents_summary = '{} people responded'.format(num_respondents)
+        output += u'\U0001f465' + ' ' + respondents_summary
         return output
 
     def build_vote_buttons(self):
@@ -78,25 +94,31 @@ class FrontPage(webapp2.RequestHandler):
 class TelegramHandler(webapp2.RequestHandler):
     def handle_exception(self, exception, debug):
         if isinstance(exception, telegram.error.NetworkError):
-            logging.warning(exception)
-            self.abort(500)
+            if str(exception) in RECOGNISED_ERRORS:
+                logging.info(exception)
+            else:
+                logging.warning(exception)
+                self.abort(500)
         else:
             logging.error(exception)
 
 class SendMessagePage(TelegramHandler):
     def post(self):
+        logging.debug(self.request.body)
         kwargs = json.loads(self.request.body)
         bot.sendMessage(**kwargs)
         logging.info('Message sent!')
 
 class EditMessageTextPage(TelegramHandler):
     def post(self):
+        logging.debug(self.request.body)
         kwargs = json.loads(self.request.body)
         bot.editMessageText(**kwargs)
         logging.info('Message text edited!')
 
 class EditMessageReplyMarkupPage(TelegramHandler):
     def post(self):
+        logging.debug(self.request.body)
         kwargs = json.loads(self.request.body)
         bot.editMessageReplyMarkup(**kwargs)
         logging.info('Message reply markup edited!')
@@ -193,8 +215,9 @@ class MainPage(webapp2.RequestHandler):
         last_name = callback_query.from_user.last_name
 
         imid = callback_query.inline_message_id
-        chat_id = callback_query.message.chat.id
-        mid = callback_query.message.message_id
+        if not imid:
+            chat_id = callback_query.message.chat.id
+            mid = callback_query.message.message_id
 
         try:
             params = data.split()
@@ -221,9 +244,33 @@ class MainPage(webapp2.RequestHandler):
         self.response.headers['Content-Type'] = 'application/json'
         self.response.write(output)
         logging.info('Answered callback query!')
+        logging.debug(output)
 
     def handle_inline_query(self, inline_query):
-        pass
+        qid = inline_query.id
+        # query_text = inline_query.query
+
+        uid = str(inline_query.from_user.id)
+        query = Poll.query(Poll.admin_uid == uid).order(-Poll.created)
+        results = []
+        for poll in query.fetch(50):
+            qr_id = str(poll.key.id())
+            qr_title = poll.title
+            qr_description = poll.generate_options_summary()
+            content = {'message_text': poll.render_text()}
+            reply_markup = poll.build_vote_buttons()
+            result = {'type': 'article', 'id': qr_id, 'title': qr_title,
+                      'description': qr_description, 'input_message_content': content,
+                      'reply_markup': reply_markup}
+            results.append(result)
+
+        payload = {'method': 'answerInlineQuery', 'inline_query_id': qid, 'results': results,
+                   'switch_pm_text': 'Create new poll', 'cache_time': 0}
+        output = json.dumps(payload)
+        self.response.headers['Content-Type'] = 'application/json'
+        self.response.write(output)
+        logging.info('Answered inline query!')
+        logging.debug(output)
 
 @ndb.transactional
 def toggle_poll(poll_id, opt_id, uid, first_name, last_name):
@@ -231,7 +278,7 @@ def toggle_poll(poll_id, opt_id, uid, first_name, last_name):
     if not poll:
         return (None, 'Sorry, this poll has been deleted')
     elif opt_id >= len(poll.options):
-        return (None, 'Invalid option')
+        return (None, 'Sorry, that\'s an invalid option')
     status = poll.options[opt_id].toggle(uid, first_name, last_name)
     poll.put()
     return (poll, status)
@@ -254,17 +301,22 @@ def update_user(uid, **kwargs):
     user.put()
 
 def send_message(countdown=0, **kwargs):
-    taskqueue.add(queue_name='outbox', url='/sendMessage', payload=json.dumps(kwargs),
-                  countdown=countdown)
-    logging.info('Message queued: ' + str(kwargs))
+    payload = json.dumps(kwargs)
+    taskqueue.add(queue_name='outbox', url='/sendMessage', payload=payload, countdown=countdown)
+    logging.info('Message queued')
+    logging.debug(payload)
 
 def edit_message_text(**kwargs):
-    taskqueue.add(queue_name='outbox', url='/editMessageText', payload=json.dumps(kwargs))
-    logging.info('Message text edit queued: ' + str(kwargs))
+    payload = json.dumps(kwargs)
+    taskqueue.add(queue_name='outbox', url='/editMessageText', payload=payload)
+    logging.info('Message text edit queued')
+    logging.debug(payload)
 
 def edit_message_reply_markup(**kwargs):
-    taskqueue.add(queue_name='outbox', url='/editMessageReplyMarkup', payload=json.dumps(kwargs))
-    logging.info('Message reply markup edit queued: ' + str(kwargs))
+    payload = json.dumps(kwargs)
+    taskqueue.add(queue_name='outbox', url='/editMessageReplyMarkup', payload=payload)
+    logging.info('Message reply markup edit queued')
+    logging.debug(payload)
 
 app = webapp2.WSGIApplication([
     ('/', FrontPage),
