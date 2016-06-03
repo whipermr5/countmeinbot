@@ -290,7 +290,7 @@ class MainPage(webapp2.RequestHandler):
 
     def handle_inline_query(self, inline_query):
         qid = inline_query.id
-        text = inline_query.query
+        text = inline_query.query.lower()
 
         uid = str(inline_query.from_user.id)
         query = Poll.query(Poll.admin_uid == uid,
