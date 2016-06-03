@@ -35,7 +35,7 @@ class Poll(ndb.Model):
             output += option.title + '\n'
             output += option.generate_name_list() + '\n\n'
         plural = 's' if len(self.options) > 1 else ''
-        output += 'Add/remove your name using the button{} below!'.format(plural)
+        output += 'Add or remove your name using the button{} below!'.format(plural)
         return output
 
     def build_vote_buttons(self):
@@ -123,6 +123,9 @@ class MainPage(webapp2.RequestHandler):
         elif update.callback_query:
             logging.info('Processing incoming callback query')
             self.handle_callback_query(update.callback_query)
+        elif update.inline_query:
+            logging.info('Processing incoming inline query')
+            self.handle_inline_query(update.inline_query)
 
     def handle_message(self, message):
         u = message.from_user
@@ -193,20 +196,25 @@ class MainPage(webapp2.RequestHandler):
         chat_id = callback_query.message.chat.id
         mid = callback_query.message.message_id
 
-        params = data.split()
-        poll_id = int(params[0])
-        opt_id = int(params[1])
+        try:
+            params = data.split()
+            poll_id = int(params[0])
+            opt_id = int(params[1])
+        except:
+            logging.info('Invalid callback query data')
+            return
 
         (poll, status) = toggle_poll(poll_id, opt_id, uid, first_name, last_name)
 
-        updated_text = poll.render_text()
-        buttons = poll.build_vote_buttons()
+        if poll:
+            updated_text = poll.render_text()
+            buttons = poll.build_vote_buttons()
 
-        if imid:
-            edit_message_text(inline_message_id=imid, text=updated_text, reply_markup=buttons)
-        else:
-            edit_message_text(chat_id=chat_id, message_id=mid, text=updated_text,
-                              reply_markup=buttons)
+            if imid:
+                edit_message_text(inline_message_id=imid, text=updated_text, reply_markup=buttons)
+            else:
+                edit_message_text(chat_id=chat_id, message_id=mid, text=updated_text,
+                                  reply_markup=buttons)
 
         payload = {'method': 'answerCallbackQuery', 'callback_query_id': qid, 'text': status}
         output = json.dumps(payload)
@@ -214,9 +222,16 @@ class MainPage(webapp2.RequestHandler):
         self.response.write(output)
         logging.info('Answered callback query!')
 
+    def handle_inline_query(self, inline_query):
+        pass
+
 @ndb.transactional
 def toggle_poll(poll_id, opt_id, uid, first_name, last_name):
     poll = get_poll(poll_id)
+    if not poll:
+        return (None, 'Sorry, this poll has been deleted')
+    elif opt_id >= len(poll.options):
+        return (None, 'Invalid option')
     status = poll.options[opt_id].toggle(uid, first_name, last_name)
     poll.put()
     return (poll, status)
