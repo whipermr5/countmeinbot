@@ -66,7 +66,16 @@ class Poll(ndb.Model):
         return InlineKeyboardMarkup(buttons).to_dict()
 
     def build_admin_buttons(self):
-        return self.build_vote_buttons()
+        poll_id = self.key.id()
+        publish_button = InlineKeyboardButton('Publish poll', switch_inline_query=self.title[:512])
+        refresh_data = '{} refresh'.format(poll_id)
+        refresh_button = InlineKeyboardButton('Update results', callback_data=refresh_data)
+        vote_data = '{} vote'.format(poll_id)
+        vote_button = InlineKeyboardButton('Vote', callback_data=vote_data)
+        delete_data = '{} delete'.format(poll_id)
+        delete_button = InlineKeyboardButton('Delete', callback_data=delete_data)
+        buttons = [[publish_button], [refresh_button], [vote_button, delete_button]]
+        return InlineKeyboardMarkup(buttons).to_dict()
 
 class Option(object):
     def __init__(self, title, people=OrderedDict()):
@@ -172,7 +181,7 @@ class MainPage(webapp2.RequestHandler):
                 option_count = len(poll.options)
                 if option_count > 0:
                     send_message(chat_id=uid, text=self.DONE)
-                    send_poll(uid, poll)
+                    deliver_poll(uid, poll)
                     memcache.delete(uid)
                 else:
                     send_message(chat_id=uid, text=self.PREMATURE_DONE)
@@ -200,7 +209,7 @@ class MainPage(webapp2.RequestHandler):
                     send_message(chat_id=uid, text=self.NEXT_OPTION)
                 else:
                     send_message(chat_id=uid, text=self.DONE)
-                    send_poll(uid, poll)
+                    deliver_poll(uid, poll)
                     memcache.delete(uid)
 
             else:
@@ -223,30 +232,55 @@ class MainPage(webapp2.RequestHandler):
         try:
             params = data.split()
             poll_id = int(params[0])
-            opt_id = int(params[1])
+            action = params[1]
         except:
-            logging.info('Invalid callback query data')
+            logging.warning('Invalid callback query data')
+            self.answer_callback_query(qid, 'Invalid data. This attempt will be logged!')
             return
 
-        (poll, status) = toggle_poll(poll_id, opt_id, uid, first_name, last_name)
-
-        if poll:
-            updated_text = poll.render_text()
-            buttons = poll.build_vote_buttons()
-
-            if imid:
-                edit_message_text(inline_message_id=imid, text=updated_text, reply_markup=buttons,
-                                  parse_mode='HTML')
-            else:
-                edit_message_text(chat_id=chat_id, message_id=mid, text=updated_text,
-                                  reply_markup=buttons, parse_mode='HTML')
-
-        else:
+        poll = get_poll(poll_id)
+        if not poll:
             if imid:
                 edit_message_reply_markup(inline_message_id=imid)
             else:
                 edit_message_reply_markup(chat_id=chat_id, message_id=mid)
+            self.answer_callback_query(qid, 'Sorry, this poll has been deleted')
+            return
 
+        if action.isdigit() or action == 'refresh':
+            if action.isdigit():
+                (poll, status) = toggle_poll(poll_id, int(action), uid, first_name, last_name)
+            else:
+                status = 'Results updated!'
+
+            updated_text = poll.render_text()
+            buttons = poll.build_vote_buttons()
+
+            if imid:
+                edit_message_text(inline_message_id=imid, text=updated_text, parse_mode='HTML',
+                                  reply_markup=poll.build_vote_buttons())
+            else:
+                edit_message_text(chat_id=chat_id, message_id=mid, text=updated_text,
+                                  parse_mode='HTML', reply_markup=poll.build_admin_buttons())
+
+        elif action == 'vote' and not imid:
+            status = 'You may now vote!'
+            edit_message_reply_markup(chat_id=chat_id, message_id=mid,
+                                      reply_markup=poll.build_vote_buttons())
+
+        elif action == 'delete' and not imid:
+            status = 'Poll deleted!'
+            poll.key.delete()
+            edit_message_reply_markup(chat_id=chat_id, message_id=mid)
+
+        else:
+            logging.warning('Invalid callback query data')
+            self.answer_callback_query(qid, 'Invalid data. This attempt will be logged!')
+            return
+
+        self.answer_callback_query(qid, status)
+
+    def answer_callback_query(self, qid, status):
         payload = {'method': 'answerCallbackQuery', 'callback_query_id': qid, 'text': status}
         output = json.dumps(payload)
         self.response.headers['Content-Type'] = 'application/json'
@@ -299,10 +333,9 @@ def get_poll(pid):
     key = ndb.Key('Poll', pid)
     return key.get()
 
-def send_poll(uid, poll, mode='vote'):
-    poll_text = poll.render_text()
-    poll_buttons = poll.build_vote_buttons() if mode == 'vote' else poll.build_admin_buttons()
-    send_message(0.5, chat_id=uid, text=poll_text, reply_markup=poll_buttons, parse_mode='HTML')
+def deliver_poll(uid, poll):
+    send_message(0.5, chat_id=uid, text=poll.render_text(), parse_mode='HTML',
+                 reply_markup=poll.build_admin_buttons())
 
 def update_user(uid, **kwargs):
     key = ndb.Key('User', uid)
