@@ -52,7 +52,7 @@ class Poll(ndb.Model):
             return '{} people responded'.format(num_respondents)
 
     def generate_poll_summary_with_link(self):
-        short_bold_title = make_html_bold(self.title[:65])
+        short_bold_title = make_html_bold(self.title.encode('utf-8')[:65])
         respondents_summary = self.generate_respondents_summary()
         link = '/view_{}'.format(self.key.id())
         return '{} {}.\n{}'.format(short_bold_title, respondents_summary, link)
