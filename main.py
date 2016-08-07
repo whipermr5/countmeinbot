@@ -10,7 +10,7 @@ from collections import OrderedDict
 from secrets import BOT_TOKEN
 bot = telegram.Bot(token=BOT_TOKEN)
 
-RECOGNISED_ERRORS = ['Message is not modified']
+RECOGNISED_ERRORS = ['Message is not modified', 'Message_id_invalid']
 THUMB_URL = 'https://countmeinbot.appspot.com/thumb.jpg'
 
 class User(ndb.Model):
@@ -367,6 +367,11 @@ class MainPage(webapp2.RequestHandler):
         logging.info('Answered inline query!')
         logging.debug(output)
 
+class MigratePage(webapp2.RequestHandler):
+    def get(self):
+        self.response.headers['Content-Type'] = 'text/plain'
+        self.response.write('Migrate page\n')
+
 @ndb.transactional
 def toggle_poll(poll_id, opt_id, uid, first_name, last_name):
     poll = get_poll(poll_id)
@@ -424,4 +429,5 @@ app = webapp2.WSGIApplication([
     ('/sendMessage', SendMessagePage),
     ('/editMessageText', EditMessageTextPage),
     ('/editMessageReplyMarkup', EditMessageReplyMarkupPage),
+    ('/migrate', MigratePage),
 ], debug=True)

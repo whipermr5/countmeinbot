@@ -5,7 +5,7 @@ api_version: 1
 threadsafe: yes
 
 handlers:
-- url: /(sendMessage|editMessageText|editMessageReplyMarkup)
+- url: /(sendMessage|editMessageText|editMessageReplyMarkup|migrate)
   script: main.app
   login: admin
 
