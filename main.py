@@ -372,6 +372,16 @@ class MigratePage(webapp2.RequestHandler):
         self.response.headers['Content-Type'] = 'text/plain'
         self.response.write('Migrate page\n')
 
+class PollsPage(webapp2.RequestHandler):
+    def get(self):
+        output = ''
+        query = Poll.query().order(-Poll.created)
+        polls = query.fetch(5000)
+        for poll in polls:
+            output += '<p>' + poll.render_text().replace('\n', '<br>\n') + '</p>\n\n'
+        # self.response.headers['Content-Type'] = 'text/plain'
+        self.response.write(output)
+
 @ndb.transactional
 def toggle_poll(poll_id, opt_id, uid, first_name, last_name):
     poll = get_poll(poll_id)
@@ -430,4 +440,5 @@ app = webapp2.WSGIApplication([
     ('/editMessageText', EditMessageTextPage),
     ('/editMessageReplyMarkup', EditMessageReplyMarkupPage),
     ('/migrate', MigratePage),
+    ('/polls', PollsPage),
 ], debug=True)
