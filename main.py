@@ -58,7 +58,7 @@ class Poll(ndb.Model):
         return '{} {}.\n{}'.format(short_bold_title, respondents_summary, link)
 
     def render_text(self):
-        output = make_html_bold(self.title) + '\n\n'
+        output = make_html_bold_first_line(self.title) + '\n\n'
         for option in self.options:
             output += make_html_bold(option.title) + '\n'
             output += strip_html_symbols(option.generate_name_list()) + '\n\n'
@@ -234,7 +234,7 @@ class MainPage(webapp2.RequestHandler):
                 new_poll = Poll(admin_uid=uid, title=text, title_short=text[:512].lower())
                 poll_key = new_poll.put()
                 poll_id = str(poll_key.id())
-                bold_title = make_html_bold(text)
+                bold_title = make_html_bold_first_line(text)
                 send_message(chat_id=uid, text=self.FIRST_OPTION.format(bold_title),
                              parse_mode='HTML')
                 memcache.set(uid, value='OPT ' + poll_id, time=3600)
@@ -432,6 +432,13 @@ def strip_html_symbols(text):
 
 def make_html_bold(text):
     return '<b>' + strip_html_symbols(text) + '</b>'
+
+def make_html_bold_first_line(text):
+    text_split = text.split('\n', 1)
+    output = make_html_bold(text_split[0])
+    if len(text_split) > 1:
+        output += '\n' + strip_html_symbols(text_split[1])
+    return output
 
 app = webapp2.WSGIApplication([
     ('/', FrontPage),
