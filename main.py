@@ -11,6 +11,7 @@ from secrets import BOT_TOKEN
 bot = telegram.Bot(token=BOT_TOKEN)
 
 RECOGNISED_ERRORS = ['Message is not modified', 'Message_id_invalid']
+RECOGNISED_ERROR_URLFETCH = 'urlfetch.Fetch()'
 THUMB_URL = 'https://countmeinbot.appspot.com/thumb.jpg'
 
 class User(ndb.Model):
@@ -124,7 +125,11 @@ class TelegramHandler(webapp2.RequestHandler):
                 logging.warning(exception)
                 self.abort(500)
         else:
-            logging.error(exception)
+            if RECOGNISED_ERROR_URLFETCH in str(exception):
+                logging.warning(exception)
+                self.abort(500)
+            else:
+                logging.error(exception)
 
 class SendMessagePage(TelegramHandler):
     def post(self):
