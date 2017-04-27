@@ -139,21 +139,21 @@ class SendMessagePage(TelegramHandler):
     def post(self):
         logging.debug(self.request.body)
         kwargs = json.loads(self.request.body)
-        bot.sendMessage(**kwargs)
+        bot.send_message(**kwargs)
         logging.info('Message sent!')
 
 class EditMessageTextPage(TelegramHandler):
     def post(self):
         logging.debug(self.request.body)
         kwargs = json.loads(self.request.body)
-        bot.editMessageText(**kwargs)
+        bot.edit_message_text(**kwargs)
         logging.info('Message text edited!')
 
 class EditMessageReplyMarkupPage(TelegramHandler):
     def post(self):
         logging.debug(self.request.body)
         kwargs = json.loads(self.request.body)
-        bot.editMessageReplyMarkup(**kwargs)
+        bot.edit_message_reply_markup(**kwargs)
         logging.info('Message reply markup edited!')
 
 class MainPage(webapp2.RequestHandler):
