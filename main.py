@@ -7,6 +7,10 @@ from google.appengine.api import taskqueue, memcache
 from google.appengine.ext import ndb
 from collections import OrderedDict
 
+import warnings
+from urllib3.contrib.appengine import AppEnginePlatformWarning
+warnings.simplefilter("ignore", AppEnginePlatformWarning)
+
 from secrets import BOT_TOKEN
 bot = telegram.Bot(token=BOT_TOKEN)
 
@@ -166,7 +170,7 @@ class MainPage(webapp2.RequestHandler):
 
     def post(self):
         logging.debug(self.request.body)
-        update = telegram.Update.de_json(json.loads(self.request.body))
+        update = telegram.Update.de_json(json.loads(self.request.body), bot)
 
         if update.message:
             logging.info('Processing incoming message')
