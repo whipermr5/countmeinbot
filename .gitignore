@@ -1,0 +1,4 @@
+lib/
+secrets.py
+*.pyc
+favicon.ico
