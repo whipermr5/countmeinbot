@@ -167,6 +167,7 @@ class MainPage(webapp2.RequestHandler):
     DONE = u'\U0001f44d' + ' Poll created. You can now publish it to a group or send it to ' + \
            'your friends in a private message. To do this, tap the button below or start ' + \
            'your message in any other chat with @countmeinbot and select one of your polls to send.'
+    ERROR_ENCODING = 'Sorry, there was an encoding problem (invalid emoji?). Please try again.'
 
     def post(self):
         logging.debug(self.request.body)
@@ -240,7 +241,12 @@ class MainPage(webapp2.RequestHandler):
                 send_message(chat_id=uid, text=self.HELP)
 
             elif responding_to == 'START':
-                new_poll = Poll(admin_uid=uid, title=text, title_short=text[:512].lower())
+                try:
+                    new_poll = Poll(admin_uid=uid, title=text, title_short=text[:512].lower())
+                except Exception as e:
+                    logging.warning(e)
+                    send_message(chat_id=uid, text=self.ERROR_ENCODING)
+                    return
                 poll_key = new_poll.put()
                 poll_id = str(poll_key.id())
                 bold_title = make_html_bold_first_line(text)
