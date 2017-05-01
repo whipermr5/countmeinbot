@@ -410,13 +410,16 @@ class MigratePage(webapp2.RequestHandler):
 
 class PollsPage(webapp2.RequestHandler):
     def get(self):
-        output = ''
+        cursor = self.request.get('cursor', None)
+        if cursor:
+            cursor = ndb.query.Cursor(urlsafe=cursor)
         query = Poll.query().order(-Poll.created)
-        polls = query.fetch(5000)
+        polls, next_cursor, has_more = query.fetch_page(1000, start_cursor=cursor)
         for poll in polls:
-            output += '<p>' + poll.render_text().replace('\n', '<br>\n') + '</p>\n\n'
-        # self.response.headers['Content-Type'] = 'text/plain'
-        self.response.write(output)
+            self.response.write('<p>' + poll.render_text().replace('\n', '<br>\n') + '</p>\n\n')
+        if not has_more:
+            return
+        self.response.write('<p><a href="?cursor={}">More</a></p>'.format(next_cursor.urlsafe()))
 
 @ndb.transactional
 def toggle_poll(poll_id, opt_id, uid, first_name, last_name):
