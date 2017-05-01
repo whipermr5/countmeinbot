@@ -419,11 +419,19 @@ class MigratePage(webapp2.RequestHandler):
 class PollsPage(webapp2.RequestHandler):
     def get(self):
         from datetime import timedelta
-        cursor = self.request.get('cursor', None)
-        if cursor:
+        cursor = self.request.get('cursor')
+        try:
             cursor = ndb.query.Cursor(urlsafe=cursor)
+        except:
+            cursor = None
+        try:
+            limit = int(self.request.get('limit'))
+            if limit <= 0:
+                raise
+        except:
+            limit = 100
         query = Poll.query().order(-Poll.created)
-        polls, next_cursor, has_more = query.fetch_page(1000, start_cursor=cursor)
+        polls, next_cursor, has_more = query.fetch_page(limit, start_cursor=cursor)
         for poll in polls:
             poll_text = poll.render_text()
             idx = poll_text.find('\n')
@@ -438,7 +446,8 @@ class PollsPage(webapp2.RequestHandler):
             self.response.write('<p>' + poll_text.replace('\n', '<br>\n') + '</p>\n\n<hr>\n\n')
         if not has_more:
             return
-        self.response.write('<p><a href="?cursor={}">More</a></p>'.format(next_cursor.urlsafe()))
+        more_url = '?cursor={}&limit={}'.format(next_cursor.urlsafe(), limit)
+        self.response.write('<p><a href="{}">More</a></p>'.format(more_url))
 
 @ndb.transactional
 def toggle_poll(poll_id, opt_id, uid, first_name, last_name):
