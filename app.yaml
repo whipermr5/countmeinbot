@@ -3,7 +3,11 @@ api_version: 1
 threadsafe: yes
 
 handlers:
-- url: /(sendMessage|editMessageText|editMessageReplyMarkup|migrate|polls)
+- url: /(migrate|polls)
+  script: main.app
+  login: admin
+
+- url: /telegram/.*
   script: main.app
   login: admin
 

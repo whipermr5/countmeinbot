@@ -177,26 +177,12 @@ class TelegramHandler(webapp2.RequestHandler):
 
         self.abort(500)
 
-class SendMessagePage(TelegramHandler):
-    def post(self):
+class TelegramPage(TelegramHandler):
+    def post(self, method_name):
         logging.debug(self.request.body)
         kwargs = json.loads(self.request.body)
-        bot.send_message(**kwargs)
-        logging.info('Message sent!')
-
-class EditMessageTextPage(TelegramHandler):
-    def post(self):
-        logging.debug(self.request.body)
-        kwargs = json.loads(self.request.body)
-        bot.edit_message_text(**kwargs)
-        logging.info('Message text edited!')
-
-class EditMessageReplyMarkupPage(TelegramHandler):
-    def post(self):
-        logging.debug(self.request.body)
-        kwargs = json.loads(self.request.body)
-        bot.edit_message_reply_markup(**kwargs)
-        logging.info('Message reply markup edited!')
+        getattr(bot, method_name)(**kwargs)
+        logging.info('Success!')
 
 class MainPage(webapp2.RequestHandler):
     NEW_POLL = 'Let\'s create a new poll. First, send me the title.'
@@ -331,9 +317,9 @@ class MainPage(webapp2.RequestHandler):
         poll = get_poll(poll_id)
         if not poll:
             if imid:
-                edit_message_reply_markup(inline_message_id=imid)
+                telegram_request('edit_message_reply_markup', inline_message_id=imid)
             else:
-                edit_message_reply_markup(chat_id=chat_id, message_id=mid)
+                telegram_request('edit_message_reply_markup', chat_id=chat_id, message_id=mid)
             self.answer_callback_query(qid, 'Sorry, this poll has been deleted')
             return
 
@@ -342,35 +328,35 @@ class MainPage(webapp2.RequestHandler):
             updated_text = poll.render_text()
 
             if imid:
-                edit_message_text(inline_message_id=imid,
-                                  text=updated_text, parse_mode='HTML',
-                                  reply_markup=poll.build_vote_buttons())
+                telegram_request('edit_message_text', inline_message_id=imid,
+                                 text=updated_text, parse_mode='HTML',
+                                 reply_markup=poll.build_vote_buttons())
             else:
-                edit_message_text(chat_id=chat_id, message_id=mid,
-                                  text=updated_text, parse_mode='HTML',
-                                  reply_markup=poll.build_vote_buttons(admin=True))
+                telegram_request('edit_message_text', chat_id=chat_id, message_id=mid,
+                                 text=updated_text, parse_mode='HTML',
+                                 reply_markup=poll.build_vote_buttons(admin=True))
 
         elif action == 'refresh' and not imid:
             status = 'Results updated!'
             updated_text = poll.render_text()
-            edit_message_text(chat_id=chat_id, message_id=mid,
-                              text=updated_text, parse_mode='HTML',
-                              reply_markup=poll.build_admin_buttons())
+            telegram_request('edit_message_text', chat_id=chat_id, message_id=mid,
+                             text=updated_text, parse_mode='HTML',
+                             reply_markup=poll.build_admin_buttons())
 
         elif action == 'vote' and not imid:
             status = 'You may now vote!'
-            edit_message_reply_markup(chat_id=chat_id, message_id=mid,
-                                      reply_markup=poll.build_vote_buttons(admin=True))
+            telegram_request('edit_message_reply_markup', chat_id=chat_id, message_id=mid,
+                             reply_markup=poll.build_vote_buttons(admin=True))
 
         elif action == 'delete' and not imid:
             status = 'Poll deleted!'
             poll.key.delete()
-            edit_message_reply_markup(chat_id=chat_id, message_id=mid)
+            telegram_request('edit_message_reply_markup', chat_id=chat_id, message_id=mid)
 
         elif action == 'back' and not imid:
             status = ''
-            edit_message_reply_markup(chat_id=chat_id, message_id=mid,
-                                      reply_markup=poll.build_admin_buttons())
+            telegram_request('edit_message_reply_markup', chat_id=chat_id, message_id=mid,
+                             reply_markup=poll.build_admin_buttons())
 
         else:
             logging.warning('Invalid callback query data')
@@ -460,21 +446,14 @@ def update_user(uid, **kwargs):
     user.put()
 
 def send_message(countdown=0, **kwargs):
-    payload = json.dumps(kwargs)
-    taskqueue.add(queue_name='outbox', url='/sendMessage', payload=payload, countdown=countdown)
-    logging.info('Message queued')
-    logging.debug(payload)
+    return telegram_request('send_message', countdown=countdown, **kwargs)
 
-def edit_message_text(**kwargs):
+def telegram_request(method_name, countdown=0, **kwargs):
     payload = json.dumps(kwargs)
-    taskqueue.add(queue_name='outbox', url='/editMessageText', payload=payload)
-    logging.info('Message text edit queued')
-    logging.debug(payload)
-
-def edit_message_reply_markup(**kwargs):
-    payload = json.dumps(kwargs)
-    taskqueue.add(queue_name='outbox', url='/editMessageReplyMarkup', payload=payload)
-    logging.info('Message reply markup edit queued')
+    taskqueue.add(queue_name='outbox', url='/telegram/' + method_name, payload=payload,
+                  countdown=countdown)
+    countdown_details = ' (countdown {}s)'.format(countdown) if countdown else ''
+    logging.info('Request queued: {}{}'.format(method_name, countdown_details))
     logging.debug(payload)
 
 def strip_html_symbols(text):
@@ -491,11 +470,9 @@ def make_html_bold_first_line(text):
     return output
 
 app = webapp2.WSGIApplication([
-    ('/', FrontPage),
-    ('/' + BOT_TOKEN, MainPage),
-    ('/sendMessage', SendMessagePage),
-    ('/editMessageText', EditMessageTextPage),
-    ('/editMessageReplyMarkup', EditMessageReplyMarkupPage),
-    ('/migrate', MigratePage),
-    ('/polls', PollsPage),
+    webapp2.Route('/', FrontPage),
+    webapp2.Route('/' + BOT_TOKEN, MainPage),
+    webapp2.Route('/telegram/<method_name>', TelegramPage),
+    webapp2.Route('/migrate', MigratePage),
+    webapp2.Route('/polls', PollsPage),
 ], debug=True)
