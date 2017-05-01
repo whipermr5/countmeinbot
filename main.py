@@ -433,16 +433,17 @@ def toggle_poll(poll_id, opt_id, uid, first_name, last_name):
     return (poll, status)
 
 def get_poll(pid):
-    key = ndb.Key('Poll', pid)
-    return key.get()
+    return ndb.Key('Poll', pid).get()
 
 def deliver_poll(uid, poll):
     send_message(0.5, chat_id=uid, text=poll.render_text(), parse_mode='HTML',
                  reply_markup=poll.build_admin_buttons())
 
+def get_user(uid):
+    return ndb.Key('User', uid).get()
+
 def update_user(uid, **kwargs):
-    key = ndb.Key('User', uid)
-    user = key.get()
+    user = get_user(uid)
     if not user:
         user = User(id=uid)
     user.populate(**kwargs)
