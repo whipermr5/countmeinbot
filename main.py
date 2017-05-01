@@ -11,6 +11,35 @@ import warnings
 from urllib3.contrib.appengine import AppEnginePlatformWarning
 warnings.simplefilter("ignore", AppEnginePlatformWarning)
 
+def is_surrogate(s, i):
+    if 0xD800 <= ord(s[i]) <= 0xDBFF:
+        try:
+            l = s[i+1]
+        except IndexError:
+            return False
+        if 0xDC00 <= ord(l) <= 0xDFFF:
+            return True
+        else:
+            raise ValueError("Illegal UTF-16 sequence: %r" % s[i:i+2])
+    else:
+        return False
+
+def uslice(s, start, end):
+    l = len(s)
+    i = 0
+    while i < start and i < l:
+        if is_surrogate(s, i):
+            start += 1
+            end += 1
+            i += 1
+        i += 1
+    while i < end and i < l:
+        if is_surrogate(s, i):
+            end += 1
+            i += 1
+        i += 1
+    return s[start:end]
+
 from secrets import BOT_TOKEN
 bot = telegram.Bot(token=BOT_TOKEN)
 
@@ -38,6 +67,9 @@ class Poll(ndb.Model):
     created = ndb.DateTimeProperty(auto_now_add=True)
     updated = ndb.DateTimeProperty(auto_now=True, indexed=False)
 
+    def get_friendly_id(self):
+        return uslice(self.title, 0, 512).encode('utf-8')
+
     def generate_options_summary(self):
         output = ''
         for option in self.options:
@@ -57,10 +89,10 @@ class Poll(ndb.Model):
             return '{} people responded'.format(num_respondents)
 
     def generate_poll_summary_with_link(self):
-        short_bold_title = make_html_bold(self.title.encode('utf-8')[:65])
+        short_bold_title = make_html_bold(uslice(self.title, 0, 65))
         respondents_summary = self.generate_respondents_summary()
         link = '/view_{}'.format(self.key.id())
-        return '{} {}.\n{}'.format(short_bold_title, respondents_summary, link)
+        return u'{} {}.\n{}'.format(short_bold_title, respondents_summary, link)
 
     def render_text(self):
         output = make_html_bold_first_line(self.title) + '\n\n'
@@ -86,7 +118,8 @@ class Poll(ndb.Model):
 
     def build_admin_buttons(self):
         poll_id = self.key.id()
-        publish_button = InlineKeyboardButton('Publish poll', switch_inline_query=self.title[:512])
+        publish_button = InlineKeyboardButton('Publish poll',
+                                              switch_inline_query=self.get_friendly_id())
         refresh_data = '{} refresh'.format(poll_id)
         refresh_button = InlineKeyboardButton('Update results', callback_data=refresh_data)
         vote_data = '{} vote'.format(poll_id)
@@ -167,7 +200,6 @@ class MainPage(webapp2.RequestHandler):
     DONE = u'\U0001f44d' + ' Poll created. You can now publish it to a group or send it to ' + \
            'your friends in a private message. To do this, tap the button below or start ' + \
            'your message in any other chat with @countmeinbot and select one of your polls to send.'
-    ERROR_ENCODING = 'Sorry, there was an encoding problem (invalid emoji?). Please try again.'
 
     def post(self):
         logging.debug(self.request.body)
@@ -191,8 +223,7 @@ class MainPage(webapp2.RequestHandler):
         if not message.text:
             return
 
-        raw_text = message.text
-        text = raw_text.encode('utf-8')
+        text = message.text
         responding_to = memcache.get(uid)
 
         if text.startswith('/start'):
@@ -219,7 +250,7 @@ class MainPage(webapp2.RequestHandler):
             i = 0
             for poll in query.fetch(50):
                 i += 1
-                output += '{}. {}\n\n'.format(i, poll.generate_poll_summary_with_link())
+                output += u'{}. {}\n\n'.format(i, poll.generate_poll_summary_with_link())
             output += 'Use /start to create a new poll.'
 
             send_message(chat_id=uid, text=output, parse_mode='HTML')
@@ -241,23 +272,18 @@ class MainPage(webapp2.RequestHandler):
                 send_message(chat_id=uid, text=self.HELP)
 
             elif responding_to == 'START':
-                try:
-                    new_poll = Poll(admin_uid=uid, title=text, title_short=text[:512].lower())
-                except Exception as e:
-                    logging.warning(e)
-                    send_message(chat_id=uid, text=self.ERROR_ENCODING)
-                    return
+                new_poll = Poll(admin_uid=uid, title=text, title_short=uslice(text, 0, 512).lower())
                 poll_key = new_poll.put()
                 poll_id = str(poll_key.id())
                 bold_title = make_html_bold_first_line(text)
-                send_message(chat_id=uid, text=self.FIRST_OPTION.format(bold_title),
+                send_message(chat_id=uid, text=unicode(self.FIRST_OPTION).format(bold_title),
                              parse_mode='HTML')
                 memcache.set(uid, value='OPT ' + poll_id, time=3600)
 
             elif responding_to.startswith('OPT '):
                 poll_id = int(responding_to[4:])
                 poll = get_poll(poll_id)
-                poll.options.append(Option(raw_text))
+                poll.options.append(Option(text))
                 poll.put()
                 option_count = len(poll.options)
                 if option_count < 10:
