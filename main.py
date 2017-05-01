@@ -158,15 +158,24 @@ class TelegramHandler(webapp2.RequestHandler):
         if isinstance(exception, telegram.error.NetworkError):
             if str(exception) in RECOGNISED_ERRORS:
                 logging.info(exception)
-            else:
-                logging.warning(exception)
-                self.abort(500)
+                return
+
+            logging.warning(exception)
+
+        elif isinstance(exception, telegram.error.Unauthorized):
+            logging.info(exception)
+            return
+
+        elif isinstance(exception, telegram.error.RetryAfter):
+            logging.warning(exception)
+
+        elif RECOGNISED_ERROR_URLFETCH in str(exception):
+            logging.warning(exception)
+
         else:
-            if RECOGNISED_ERROR_URLFETCH in str(exception):
-                logging.warning(exception)
-                self.abort(500)
-            else:
-                logging.error(exception)
+            logging.error(exception)
+
+        self.abort(500)
 
 class SendMessagePage(TelegramHandler):
     def post(self):
