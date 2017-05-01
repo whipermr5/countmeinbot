@@ -55,6 +55,14 @@ class User(ndb.Model):
     created = ndb.DateTimeProperty(auto_now_add=True)
     updated = ndb.DateTimeProperty(auto_now=True, indexed=False)
 
+    def get_description(self):
+        output = u'{}'.format(self.first_name)
+        if self.last_name:
+            output += u' {}'.format(self.last_name)
+        if self.username:
+            output += u' (@{})'.format(self.username)
+        return output
+
 class Poll(ndb.Model):
     admin_uid = ndb.StringProperty()
     title = ndb.TextProperty()
