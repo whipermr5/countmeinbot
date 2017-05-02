@@ -254,13 +254,16 @@ class MainPage(webapp2.RequestHandler):
                 send_message(chat_id=uid, text=self.HELP)
 
         elif text == '/polls':
-            output = util.make_html_bold('Your polls') + '\n\n'
+            header = [util.make_html_bold('Your polls')]
+
             query = Poll.query(Poll.admin_uid == uid).order(-Poll.created)
-            i = 0
-            for poll in query.fetch(50):
-                i += 1
-                output += u'{}. {}\n\n'.format(i, poll.generate_poll_summary_with_link())
-            output += 'Use /start to create a new poll.'
+            recent_polls = query.fetch(50)
+            body = [u'{}. {}'.format(i, poll.generate_poll_summary_with_link()) for i, poll
+                    in enumerate(recent_polls)]
+
+            footer = ['Use /start to create a new poll.']
+
+            output = u'\n\n'.join(header + body + footer)
 
             send_message(chat_id=uid, text=output, parse_mode='HTML')
             memcache.delete(uid)
