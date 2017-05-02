@@ -77,11 +77,12 @@ class Poll(ndb.Model):
             all_uids += option.people.keys()
         num_respondents = len(set(all_uids))
         if num_respondents == 0:
-            return 'Nobody responded'
+            output = 'Nobody responded'
         elif num_respondents == 1:
-            return '1 person responded'
+            output = '1 person responded'
         else:
-            return '{} people responded'.format(num_respondents)
+            output = '{} people responded'.format(num_respondents)
+        return output
 
     def generate_poll_summary_with_link(self):
         short_bold_title = util.make_html_bold(util.uslice(self.title, 0, 65))
@@ -133,10 +134,11 @@ class Option(object):
         uid = str(uid)
         if self.people.get(uid):
             self.people.pop(uid, None)
-            return 'Your name was removed from ' + self.title + '!'
+            action = u'removed from'
         else:
             self.people[uid] = (first_name, last_name)
-            return 'Your name was added to ' + self.title + '!'
+            action = u'added to'
+        return u'Your name was {} {}!'.format(action, self.title)
 
     def generate_name_list(self):
         output = ''
@@ -474,7 +476,7 @@ def toggle_poll(poll_id, opt_id, uid, first_name, last_name):
     poll = Poll.get_by_id(poll_id)
     if not poll:
         return (None, 'Sorry, this poll has been deleted')
-    elif opt_id >= len(poll.options):
+    if opt_id >= len(poll.options):
         return (None, 'Sorry, that\'s an invalid option')
     status = poll.options[opt_id].toggle(uid, first_name, last_name)
     poll.put()
