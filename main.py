@@ -23,7 +23,14 @@ RECOGNISED_ERRORS = ['u\'Bad Request: message is not modified\'',
 RECOGNISED_ERROR_URLFETCH = 'urlfetch.Fetch()'
 THUMB_URL = 'https://countmeinbot.appspot.com/thumb.jpg'
 
-class User(ndb.Model):
+class Model(ndb.Model):
+    @classmethod
+    def populate_by_id(cls, id, **kwargs):
+        entity = cls.get_by_id(id) or cls(id=id)
+        entity.populate(**kwargs)
+        entity.put()
+
+class User(Model):
     first_name = ndb.TextProperty()
     last_name = ndb.TextProperty()
     username = ndb.StringProperty(indexed=False)
@@ -201,7 +208,8 @@ class MainPage(webapp2.RequestHandler):
 
     def handle_message(self, message):
         u = message.from_user
-        update_user(u.id, first_name=u.first_name, last_name=u.last_name, username=u.username)
+        User.populate_by_id(u.id,
+                            first_name=u.first_name, last_name=u.last_name, username=u.username)
         uid = str(message.chat.id)
 
         if not message.text:
@@ -217,7 +225,7 @@ class MainPage(webapp2.RequestHandler):
         elif text == '/done':
             if responding_to and responding_to.startswith('OPT '):
                 poll_id = int(responding_to[4:])
-                poll = get_poll(poll_id)
+                poll = Poll.get_by_id(poll_id)
                 option_count = len(poll.options)
                 if option_count > 0:
                     send_message(chat_id=uid, text=self.DONE)
@@ -243,7 +251,7 @@ class MainPage(webapp2.RequestHandler):
         elif text.startswith('/view_'):
             try:
                 poll_id = int(text[6:])
-                poll = get_poll(poll_id)
+                poll = Poll.get_by_id(poll_id)
                 if poll.admin_uid != uid:
                     raise
                 deliver_poll(uid, poll)
@@ -266,7 +274,7 @@ class MainPage(webapp2.RequestHandler):
 
             elif responding_to.startswith('OPT '):
                 poll_id = int(responding_to[4:])
-                poll = get_poll(poll_id)
+                poll = Poll.get_by_id(poll_id)
                 poll.options.append(Option(text))
                 poll.put()
                 option_count = len(poll.options)
@@ -291,7 +299,8 @@ class MainPage(webapp2.RequestHandler):
         username = callback_query.from_user.username
 
         try:
-            update_respondent(uid, first_name=first_name, last_name=last_name, username=username)
+            Respondent.populate_by_id(uid,
+                                      first_name=first_name, last_name=last_name, username=username)
         except apiproxy_errors.OverQuotaError:
             self.answer_callback_query(qid, self.ERROR_OVER_QUOTA)
             return
@@ -310,7 +319,7 @@ class MainPage(webapp2.RequestHandler):
             self.answer_callback_query(qid, 'Invalid data. This attempt will be logged!')
             return
 
-        poll = get_poll(poll_id)
+        poll = Poll.get_by_id(poll_id)
         if not poll:
             if imid:
                 telegram_request('edit_message_reply_markup', inline_message_id=imid)
@@ -419,7 +428,7 @@ class PollPage(webapp2.RequestHandler):
     def get(self, pid):
         try:
             pid = int(pid)
-            poll = get_poll(pid)
+            poll = Poll.get_by_id(pid)
             poll_text = poll.render_text()
         except:
             self.response.set_status(404)
@@ -446,7 +455,7 @@ class PollsPage(webapp2.RequestHandler):
         for poll in polls:
             poll_text = poll.render_text()
             idx = poll_text.find('\n')
-            user = get_user(int(poll.admin_uid))
+            user = User.get_by_id(int(poll.admin_uid))
             if user:
                 user_description = user.get_description()
             else:
@@ -462,7 +471,7 @@ class PollsPage(webapp2.RequestHandler):
 
 @ndb.transactional
 def toggle_poll(poll_id, opt_id, uid, first_name, last_name):
-    poll = get_poll(poll_id)
+    poll = Poll.get_by_id(poll_id)
     if not poll:
         return (None, 'Sorry, this poll has been deleted')
     elif opt_id >= len(poll.options):
@@ -471,32 +480,9 @@ def toggle_poll(poll_id, opt_id, uid, first_name, last_name):
     poll.put()
     return (poll, status)
 
-def get_poll(pid):
-    return ndb.Key('Poll', pid).get()
-
 def deliver_poll(uid, poll):
     send_message(0.5, chat_id=uid, text=poll.render_text(), parse_mode='HTML',
                  reply_markup=poll.build_admin_buttons())
-
-def get_user(uid):
-    return ndb.Key('User', uid).get()
-
-def update_user(uid, **kwargs):
-    user = get_user(uid)
-    if not user:
-        user = User(id=uid)
-    user.populate(**kwargs)
-    user.put()
-
-def get_respondent(uid):
-    return ndb.Key('Respondent', uid).get()
-
-def update_respondent(uid, **kwargs):
-    respondent = get_respondent(uid)
-    if not respondent:
-        respondent = Respondent(id=uid)
-    respondent.populate(**kwargs)
-    respondent.put()
 
 def send_message(countdown=0, **kwargs):
     return telegram_request('send_message', countdown=countdown, **kwargs)
