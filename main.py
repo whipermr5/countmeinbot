@@ -12,34 +12,7 @@ import warnings
 from urllib3.contrib.appengine import AppEnginePlatformWarning
 warnings.simplefilter("ignore", AppEnginePlatformWarning)
 
-def is_surrogate(s, i):
-    if 0xD800 <= ord(s[i]) <= 0xDBFF:
-        try:
-            l = s[i+1]
-        except IndexError:
-            return False
-        if 0xDC00 <= ord(l) <= 0xDFFF:
-            return True
-        else:
-            raise ValueError("Illegal UTF-16 sequence: %r" % s[i:i+2])
-    else:
-        return False
-
-def uslice(s, start, end):
-    l = len(s)
-    i = 0
-    while i < start and i < l:
-        if is_surrogate(s, i):
-            start += 1
-            end += 1
-            i += 1
-        i += 1
-    while i < end and i < l:
-        if is_surrogate(s, i):
-            end += 1
-            i += 1
-        i += 1
-    return s[start:end]
+import util
 
 from secrets import BOT_TOKEN
 bot = telegram.Bot(token=BOT_TOKEN)
@@ -83,7 +56,7 @@ class Poll(ndb.Model):
     updated = ndb.DateTimeProperty(auto_now=True, indexed=False)
 
     def get_friendly_id(self):
-        return uslice(self.title, 0, 512).encode('utf-8')
+        return util.uslice(self.title, 0, 512).encode('utf-8')
 
     def generate_options_summary(self):
         output = ''
@@ -104,16 +77,16 @@ class Poll(ndb.Model):
             return '{} people responded'.format(num_respondents)
 
     def generate_poll_summary_with_link(self):
-        short_bold_title = make_html_bold(uslice(self.title, 0, 65))
+        short_bold_title = util.make_html_bold(util.uslice(self.title, 0, 65))
         respondents_summary = self.generate_respondents_summary()
         link = '/view_{}'.format(self.key.id())
         return u'{} {}.\n{}'.format(short_bold_title, respondents_summary, link)
 
     def render_text(self):
-        output = make_html_bold_first_line(self.title) + '\n\n'
+        output = util.make_html_bold_first_line(self.title) + '\n\n'
         for option in self.options:
-            output += make_html_bold(option.title) + '\n'
-            output += strip_html_symbols(option.generate_name_list()) + '\n\n'
+            output += util.make_html_bold(option.title) + '\n'
+            output += util.strip_html_symbols(option.generate_name_list()) + '\n\n'
         output += u'\U0001f465' + ' ' + self.generate_respondents_summary()
         return output
 
@@ -266,7 +239,7 @@ class MainPage(SafeRequestHandler):
                 send_message(chat_id=uid, text=self.HELP)
 
         elif text == '/polls':
-            output = make_html_bold('Your polls') + '\n\n'
+            output = util.make_html_bold('Your polls') + '\n\n'
             query = Poll.query(Poll.admin_uid == uid).order(-Poll.created)
             i = 0
             for poll in query.fetch(50):
@@ -293,10 +266,10 @@ class MainPage(SafeRequestHandler):
                 send_message(chat_id=uid, text=self.HELP)
 
             elif responding_to == 'START':
-                new_poll = Poll(admin_uid=uid, title=text, title_short=uslice(text, 0, 512).lower())
+                new_poll = Poll(admin_uid=uid, title=text, title_short=util.uslice(text, 0, 512).lower())
                 poll_key = new_poll.put()
                 poll_id = str(poll_key.id())
-                bold_title = make_html_bold_first_line(text)
+                bold_title = util.make_html_bold_first_line(text)
                 send_message(chat_id=uid, text=unicode(self.FIRST_OPTION).format(bold_title),
                              parse_mode='HTML')
                 memcache.set(uid, value='OPT ' + poll_id, time=3600)
@@ -537,19 +510,6 @@ def telegram_request(method_name, countdown=0, **kwargs):
     countdown_details = ' (countdown {}s)'.format(countdown) if countdown else ''
     logging.info('Request queued: {}{}'.format(method_name, countdown_details))
     logging.debug(payload)
-
-def strip_html_symbols(text):
-    return text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
-
-def make_html_bold(text):
-    return '<b>' + strip_html_symbols(text) + '</b>'
-
-def make_html_bold_first_line(text):
-    text_split = text.split('\n', 1)
-    output = make_html_bold(text_split[0])
-    if len(text_split) > 1:
-        output += '\n' + strip_html_symbols(text_split[1])
-    return output
 
 app = webapp2.WSGIApplication([
     webapp2.Route('/', FrontPage),
