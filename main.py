@@ -1,21 +1,20 @@
-import webapp2
 import logging
+import warnings
 import json
+from collections import OrderedDict
+
+import util
+from secrets import BOT_TOKEN
+
+import webapp2
 import telegram
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton
 from google.appengine.api import taskqueue, memcache
 from google.appengine.ext import ndb
 from google.appengine.runtime import apiproxy_errors
-from collections import OrderedDict
-
-import warnings
 from urllib3.contrib.appengine import AppEnginePlatformWarning
+
 warnings.simplefilter("ignore", AppEnginePlatformWarning)
-
-import util
-
-from secrets import BOT_TOKEN
-bot = telegram.Bot(token=BOT_TOKEN)
 
 RECOGNISED_ERRORS = ['u\'Bad Request: message is not modified\'',
                      'u\'Bad Request: message to edit not found\'',
@@ -144,9 +143,13 @@ class Option(object):
 
 class TelegramPage(webapp2.RequestHandler):
     def post(self, method_name):
+        bot = telegram.Bot(token=BOT_TOKEN)
+
         logging.debug(self.request.body)
+
         kwargs = json.loads(self.request.body)
         getattr(bot, method_name)(**kwargs)
+
         logging.info('Success!')
 
     def handle_exception(self, exception, debug):
@@ -192,7 +195,7 @@ class MainPage(webapp2.RequestHandler):
 
     def post(self):
         logging.debug(self.request.body)
-        update = telegram.Update.de_json(json.loads(self.request.body), bot)
+        update = telegram.Update.de_json(json.loads(self.request.body), None)
 
         if update.message:
             logging.info('Processing incoming message')
