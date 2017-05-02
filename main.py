@@ -63,6 +63,11 @@ class User(ndb.Model):
             output += u' (@{})'.format(self.username)
         return output
 
+class Respondent(User):
+    username = ndb.StringProperty(indexed=True)
+    updated = ndb.DateTimeProperty(auto_now=True, indexed=True)
+    pass
+
 class Poll(ndb.Model):
     admin_uid = ndb.StringProperty()
     title = ndb.TextProperty()
@@ -143,6 +148,7 @@ class Option(object):
         self.people = people
 
     def toggle(self, uid, first_name, last_name):
+        uid = str(uid)
         if self.people.get(uid):
             self.people.pop(uid, None)
             return 'Your name was removed from ' + self.title + '!'
@@ -304,9 +310,12 @@ class MainPage(webapp2.RequestHandler):
         qid = callback_query.id
         data = callback_query.data
 
-        uid = str(callback_query.from_user.id)
+        uid = callback_query.from_user.id
         first_name = callback_query.from_user.first_name
         last_name = callback_query.from_user.last_name
+        username = callback_query.from_user.username
+
+        update_respondent(uid, first_name=first_name, last_name=last_name, username=username)
 
         imid = callback_query.inline_message_id
         if not imid:
@@ -476,6 +485,16 @@ def update_user(uid, **kwargs):
         user = User(id=uid)
     user.populate(**kwargs)
     user.put()
+
+def get_respondent(uid):
+    return ndb.Key('Respondent', uid).get()
+
+def update_respondent(uid, **kwargs):
+    respondent = get_respondent(uid)
+    if not respondent:
+        respondent = Respondent(id=uid)
+    respondent.populate(**kwargs)
+    respondent.put()
 
 def send_message(countdown=0, **kwargs):
     return telegram_request('send_message', countdown=countdown, **kwargs)
