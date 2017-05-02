@@ -428,6 +428,9 @@ class MainPage(SafeRequestHandler):
                       'reply_markup': reply_markup, 'thumb_url': THUMB_URL}
             results.append(result)
 
+        self.answer_inline_query(qid, results)
+
+    def answer_inline_query(self, qid, results):
         payload = {'method': 'answerInlineQuery', 'inline_query_id': qid, 'results': results,
                    'switch_pm_text': 'Create new poll', 'switch_pm_parameter': 'new',
                    'cache_time': 0}
