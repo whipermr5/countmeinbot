@@ -5,6 +5,7 @@ import telegram
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton
 from google.appengine.api import taskqueue, memcache
 from google.appengine.ext import ndb
+from google.appengine.runtime import apiproxy_errors
 from collections import OrderedDict
 
 import warnings
@@ -162,11 +163,6 @@ class Option(object):
             output += first_name + '\n'
         return output.strip()
 
-class FrontPage(webapp2.RequestHandler):
-    def get(self):
-        self.response.headers['Content-Type'] = 'text/plain'
-        self.response.write('CountMeIn Bot backend running...')
-
 class TelegramHandler(webapp2.RequestHandler):
     def handle_exception(self, exception, debug):
         if isinstance(exception, telegram.error.NetworkError):
@@ -198,7 +194,21 @@ class TelegramPage(TelegramHandler):
         getattr(bot, method_name)(**kwargs)
         logging.info('Success!')
 
-class MainPage(webapp2.RequestHandler):
+class SafeRequestHandler(webapp2.RequestHandler):
+    def handle_exception(self, exception, debug):
+        if isinstance(exception, apiproxy_errors.OverQuotaError):
+            logging.warning(exception)
+            return
+
+        logging.exception(exception)
+        self.abort(500)
+
+class FrontPage(SafeRequestHandler):
+    def get(self):
+        self.response.headers['Content-Type'] = 'text/plain'
+        self.response.write('CountMeIn Bot backend running...')
+
+class MainPage(SafeRequestHandler):
     NEW_POLL = 'Let\'s create a new poll. First, send me the title.'
     PREMATURE_DONE = 'Sorry, a poll needs to have at least one option to work.'
     FIRST_OPTION = 'New poll: \'{}\'\n\nPlease send me the first answer option.'
@@ -209,6 +219,7 @@ class MainPage(webapp2.RequestHandler):
     DONE = u'\U0001f44d' + ' Poll created. You can now publish it to a group or send it to ' + \
            'your friends in a private message. To do this, tap the button below or start ' + \
            'your message in any other chat with @countmeinbot and select one of your polls to send.'
+    ERROR_OVER_QUOTA = 'Sorry, CountMeInBot is overloaded right now. Please try again later!'
 
     def post(self):
         logging.debug(self.request.body)
@@ -315,7 +326,11 @@ class MainPage(webapp2.RequestHandler):
         last_name = callback_query.from_user.last_name
         username = callback_query.from_user.username
 
-        update_respondent(uid, first_name=first_name, last_name=last_name, username=username)
+        try:
+            update_respondent(uid, first_name=first_name, last_name=last_name, username=username)
+        except apiproxy_errors.OverQuotaError:
+            self.answer_callback_query(qid, self.ERROR_OVER_QUOTA)
+            return
 
         imid = callback_query.inline_message_id
         if not imid:
@@ -420,12 +435,12 @@ class MainPage(webapp2.RequestHandler):
         logging.info('Answered inline query!')
         logging.debug(output)
 
-class MigratePage(webapp2.RequestHandler):
+class MigratePage(SafeRequestHandler):
     def get(self):
         self.response.headers['Content-Type'] = 'text/plain'
         self.response.write('Migrate page\n')
 
-class PollsPage(webapp2.RequestHandler):
+class PollsPage(SafeRequestHandler):
     def get(self):
         from datetime import timedelta
         cursor = self.request.get('cursor')
