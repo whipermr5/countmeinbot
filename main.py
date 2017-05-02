@@ -61,6 +61,11 @@ class Poll(ndb.Model):
     created = ndb.DateTimeProperty(auto_now_add=True)
     updated = ndb.DateTimeProperty(auto_now=True, indexed=False)
 
+    @classmethod
+    def new(cls, admin_uid, title):
+        title_short = util.uslice(title, 0, 512).lower()
+        return cls(admin_uid=admin_uid, title=title, title_short=title_short)
+
     @staticmethod
     @ndb.transactional
     def toggle(poll_id, opt_id, uid, first_name, last_name):
@@ -194,7 +199,7 @@ class FrontPage(webapp2.RequestHandler):
 class MainPage(webapp2.RequestHandler):
     NEW_POLL = 'Let\'s create a new poll. First, send me the title.'
     PREMATURE_DONE = 'Sorry, a poll needs to have at least one option to work.'
-    FIRST_OPTION = 'New poll: \'{}\'\n\nPlease send me the first answer option.'
+    FIRST_OPTION = u'New poll: \'{}\'\n\nPlease send me the first answer option.'
     NEXT_OPTION = 'Good. Now send me another answer option, or /done to finish.'
     HELP = 'This bot will help you create polls where people can leave their names. ' + \
            'Use /start to create a poll here, then publish it to groups or send it to' + \
@@ -276,13 +281,13 @@ class MainPage(webapp2.RequestHandler):
                 send_message(chat_id=uid, text=self.HELP)
 
             elif responding_to == 'START':
-                new_poll = Poll(admin_uid=uid, title=text, title_short=util.uslice(text, 0, 512).lower())
+                new_poll = Poll.new(admin_uid=uid, title=text)
                 poll_key = new_poll.put()
-                poll_id = str(poll_key.id())
+                poll_id = poll_key.id()
                 bold_title = util.make_html_bold_first_line(text)
-                send_message(chat_id=uid, text=unicode(self.FIRST_OPTION).format(bold_title),
+                send_message(chat_id=uid, text=self.FIRST_OPTION.format(bold_title),
                              parse_mode='HTML')
-                memcache.set(uid, value='OPT ' + poll_id, time=3600)
+                memcache.set(uid, value='OPT {}'.format(poll_id), time=3600)
 
             elif responding_to.startswith('OPT '):
                 poll_id = int(responding_to[4:])
