@@ -137,7 +137,13 @@ class Option(object):
             output += first_name + '\n'
         return output.strip()
 
-class TelegramHandler(webapp2.RequestHandler):
+class TelegramPage(webapp2.RequestHandler):
+    def post(self, method_name):
+        logging.debug(self.request.body)
+        kwargs = json.loads(self.request.body)
+        getattr(bot, method_name)(**kwargs)
+        logging.info('Success!')
+
     def handle_exception(self, exception, debug):
         if isinstance(exception, telegram.error.NetworkError):
             if str(exception) in RECOGNISED_ERRORS:
@@ -161,28 +167,12 @@ class TelegramHandler(webapp2.RequestHandler):
 
         self.abort(500)
 
-class TelegramPage(TelegramHandler):
-    def post(self, method_name):
-        logging.debug(self.request.body)
-        kwargs = json.loads(self.request.body)
-        getattr(bot, method_name)(**kwargs)
-        logging.info('Success!')
-
-class SafeRequestHandler(webapp2.RequestHandler):
-    def handle_exception(self, exception, debug):
-        if isinstance(exception, apiproxy_errors.OverQuotaError):
-            logging.warning(exception)
-            return
-
-        logging.exception(exception)
-        self.abort(500)
-
-class FrontPage(SafeRequestHandler):
+class FrontPage(webapp2.RequestHandler):
     def get(self):
         self.response.headers['Content-Type'] = 'text/plain'
         self.response.write('CountMeIn Bot backend running...')
 
-class MainPage(SafeRequestHandler):
+class MainPage(webapp2.RequestHandler):
     NEW_POLL = 'Let\'s create a new poll. First, send me the title.'
     PREMATURE_DONE = 'Sorry, a poll needs to have at least one option to work.'
     FIRST_OPTION = 'New poll: \'{}\'\n\nPlease send me the first answer option.'
@@ -412,12 +402,20 @@ class MainPage(SafeRequestHandler):
         logging.info('Answered inline query!')
         logging.debug(output)
 
-class MigratePage(SafeRequestHandler):
+    def handle_exception(self, exception, debug):
+        if isinstance(exception, apiproxy_errors.OverQuotaError):
+            logging.warning(exception)
+            return
+
+        logging.exception(exception)
+        self.abort(500)
+
+class MigratePage(webapp2.RequestHandler):
     def get(self):
         self.response.headers['Content-Type'] = 'text/plain'
         self.response.write('Migrate page\n')
 
-class PollPage(SafeRequestHandler):
+class PollPage(webapp2.RequestHandler):
     def get(self, pid):
         try:
             pid = int(pid)
@@ -429,7 +427,7 @@ class PollPage(SafeRequestHandler):
             return
         self.response.write('<p>' + poll_text.replace('\n', '<br>\n') + '</p>')
 
-class PollsPage(SafeRequestHandler):
+class PollsPage(webapp2.RequestHandler):
     def get(self):
         from datetime import timedelta
         cursor = self.request.get('cursor')
