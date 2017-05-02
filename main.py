@@ -63,7 +63,7 @@ class Poll(ndb.Model):
     updated = ndb.DateTimeProperty(auto_now=True, indexed=False)
 
     def get_friendly_id(self):
-        return util.uslice(self.title, 0, 512).encode('utf-8')
+        return util.uslice(self.title, 0, 512)
 
     def generate_options_summary(self):
         output = ''
@@ -113,8 +113,8 @@ class Poll(ndb.Model):
 
     def build_admin_buttons(self):
         poll_id = self.key.id()
-        publish_button = InlineKeyboardButton('Publish poll',
-                                              switch_inline_query=self.get_friendly_id())
+        insert_key = self.get_friendly_id().encode('utf-8')
+        publish_button = InlineKeyboardButton('Publish poll', switch_inline_query=insert_key)
         refresh_data = '{} refresh'.format(poll_id)
         refresh_button = InlineKeyboardButton('Update results', callback_data=refresh_data)
         vote_data = '{} vote'.format(poll_id)
