@@ -190,7 +190,7 @@ class MainPage(webapp2.RequestHandler):
     DONE = u'\U0001f44d' + ' Poll created. You can now publish it to a group or send it to ' + \
            'your friends in a private message. To do this, tap the button below or start ' + \
            'your message in any other chat with @countmeinbot and select one of your polls to send.'
-    ERROR_OVER_QUOTA = 'Sorry, CountMeInBot is overloaded right now. Please try again later!'
+    ERROR_OVER_QUOTA = 'Sorry, CountMeIn Bot is overloaded right now. Please try again later!'
 
     def post(self):
         logging.debug(self.request.body)
