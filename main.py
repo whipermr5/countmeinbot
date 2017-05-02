@@ -66,15 +66,11 @@ class Poll(ndb.Model):
         return util.uslice(self.title, 0, 512)
 
     def generate_options_summary(self):
-        output = ''
-        for option in self.options:
-            output += option.title + ' / '
-        return output.rstrip(' / ')
+        return u' / '.join([option.title for option in self.options])
 
     def generate_respondents_summary(self):
-        all_uids = []
-        for option in self.options:
-            all_uids += option.people.keys()
+        all_uids_by_option = [option.people.keys() for option in self.options]
+        all_uids = util.flatten(all_uids_by_option)
         num_respondents = len(set(all_uids))
         if num_respondents == 0:
             output = 'Nobody responded'
@@ -91,12 +87,10 @@ class Poll(ndb.Model):
         return u'{} {}.\n{}'.format(short_bold_title, respondents_summary, link)
 
     def render_text(self):
-        output = util.make_html_bold_first_line(self.title) + '\n\n'
-        for option in self.options:
-            output += util.make_html_bold(option.title) + '\n'
-            output += util.strip_html_symbols(option.generate_name_list()) + '\n\n'
-        output += u'\U0001f465' + ' ' + self.generate_respondents_summary()
-        return output
+        header = [util.make_html_bold_first_line(self.title)]
+        body = [option.render_text() for option in self.options]
+        footer = [u'\U0001f465 ' + self.generate_respondents_summary()]
+        return u'\n\n'.join(header + body + footer)
 
     def build_vote_buttons(self, admin=False):
         poll_id = self.key.id()
@@ -140,11 +134,13 @@ class Option(object):
             action = u'added to'
         return u'Your name was {} {}!'.format(action, self.title)
 
+    def render_text(self):
+        title = util.make_html_bold(self.title)
+        name_list = util.strip_html_symbols(self.generate_name_list())
+        return title + '\n' + name_list
+
     def generate_name_list(self):
-        output = ''
-        for (first_name, _) in self.people.values():
-            output += first_name + '\n'
-        return output.strip()
+        return '\n'.join([first_name for first_name, _ in self.people.values()])
 
 class TelegramPage(webapp2.RequestHandler):
     def post(self, method_name):

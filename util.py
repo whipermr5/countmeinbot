@@ -27,6 +27,8 @@ def uslice(s, start, end):
         i += 1
     return s[start:end]
 
+flatten = lambda l: [item for sublist in l for item in sublist]
+
 def strip_html_symbols(text):
     return text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
 
