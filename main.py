@@ -254,7 +254,7 @@ class MainPage(webapp2.RequestHandler):
                 poll_id = int(text[6:])
                 poll = Poll.get_by_id(poll_id)
                 if poll.admin_uid != uid:
-                    raise
+                    raise Exception
                 deliver_poll(uid, poll)
                 memcache.delete(uid)
             except:
@@ -448,7 +448,7 @@ class PollsPage(webapp2.RequestHandler):
         try:
             limit = int(self.request.get('limit'))
             if limit <= 0:
-                raise
+                raise Exception
         except:
             limit = 100
         query = Poll.query().order(-Poll.created)
