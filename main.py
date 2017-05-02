@@ -61,6 +61,18 @@ class Poll(ndb.Model):
     created = ndb.DateTimeProperty(auto_now_add=True)
     updated = ndb.DateTimeProperty(auto_now=True, indexed=False)
 
+    @staticmethod
+    @ndb.transactional
+    def toggle(poll_id, opt_id, uid, first_name, last_name):
+        poll = Poll.get_by_id(poll_id)
+        if not poll:
+            return None, 'Sorry, this poll has been deleted'
+        if opt_id >= len(poll.options):
+            return None, 'Sorry, that\'s an invalid option'
+        status = poll.options[opt_id].toggle(uid, first_name, last_name)
+        poll.put()
+        return poll, status
+
     def get_friendly_id(self):
         return util.uslice(self.title, 0, 512)
 
@@ -329,7 +341,7 @@ class MainPage(webapp2.RequestHandler):
             return
 
         if action.isdigit():
-            (poll, status) = toggle_poll(poll_id, int(action), uid, first_name, last_name)
+            poll, status = Poll.toggle(poll_id, int(action), uid, first_name, last_name)
             updated_text = poll.render_text()
 
             if imid:
@@ -468,17 +480,6 @@ class PollsPage(webapp2.RequestHandler):
             return
         more_url = '?cursor={}&limit={}'.format(next_cursor.urlsafe(), limit)
         self.response.write('<p><a href="{}">More</a></p>'.format(more_url))
-
-@ndb.transactional
-def toggle_poll(poll_id, opt_id, uid, first_name, last_name):
-    poll = Poll.get_by_id(poll_id)
-    if not poll:
-        return (None, 'Sorry, this poll has been deleted')
-    if opt_id >= len(poll.options):
-        return (None, 'Sorry, that\'s an invalid option')
-    status = poll.options[opt_id].toggle(uid, first_name, last_name)
-    poll.put()
-    return (poll, status)
 
 def deliver_poll(uid, poll):
     send_message(0.5, chat_id=uid, text=poll.render_text(), parse_mode='HTML',
