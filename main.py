@@ -44,7 +44,9 @@ def uslice(s, start, end):
 from secrets import BOT_TOKEN
 bot = telegram.Bot(token=BOT_TOKEN)
 
-RECOGNISED_ERRORS = ['u\'Bad Request: message is not modified\'', 'Message_id_invalid']
+RECOGNISED_ERRORS = ['u\'Bad Request: message is not modified\'',
+                     'u\'Bad Request: message to edit not found\'',
+                     'Message_id_invalid']
 RECOGNISED_ERROR_URLFETCH = 'urlfetch.Fetch()'
 THUMB_URL = 'https://countmeinbot.appspot.com/thumb.jpg'
 
