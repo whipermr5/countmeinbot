@@ -445,6 +445,18 @@ class MigratePage(SafeRequestHandler):
         self.response.headers['Content-Type'] = 'text/plain'
         self.response.write('Migrate page\n')
 
+class PollPage(SafeRequestHandler):
+    def get(self, pid):
+        try:
+            pid = int(pid)
+            poll = get_poll(pid)
+            poll_text = poll.render_text()
+        except:
+            self.response.set_status(404)
+            self.response.write('Invalid poll ID')
+            return
+        self.response.write('<p>' + poll_text.replace('\n', '<br>\n') + '</p>')
+
 class PollsPage(SafeRequestHandler):
     def get(self):
         from datetime import timedelta
@@ -546,4 +558,5 @@ app = webapp2.WSGIApplication([
     webapp2.Route('/telegram/<method_name>', TelegramPage),
     webapp2.Route('/migrate', MigratePage),
     webapp2.Route('/polls', PollsPage),
+    webapp2.Route('/poll/<pid>', PollPage),
 ], debug=True)
