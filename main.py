@@ -93,11 +93,10 @@ class Poll(ndb.Model):
 
     def build_vote_buttons(self, admin=False):
         poll_id = self.key.id()
-        options = self.options
         buttons = []
-        for i in range(len(options)):
+        for i, option in enumerate(self.options):
             data = '{} {}'.format(poll_id, i)
-            button = InlineKeyboardButton(options[i].title, callback_data=data)
+            button = InlineKeyboardButton(option.title, callback_data=data)
             buttons.append([button])
         if admin:
             back_data = '{} back'.format(poll_id)
