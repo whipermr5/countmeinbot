@@ -69,7 +69,6 @@ class User(ndb.Model):
 class Respondent(User):
     username = ndb.StringProperty(indexed=True)
     updated = ndb.DateTimeProperty(auto_now=True, indexed=True)
-    pass
 
 class Poll(ndb.Model):
     admin_uid = ndb.StringProperty()
