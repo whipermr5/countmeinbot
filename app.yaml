@@ -7,13 +7,9 @@ handlers:
   script: main.app
   login: admin
 
-- url: /favicon.ico
-  static_files: favicon.ico
-  upload: favicon.ico
-
-- url: /thumb.jpg
-  static_files: thumb.jpg
-  upload: thumb.jpg
+- url: /(.*\.(ico|jpg))$
+  static_files: img/\1
+  upload: img/.*\.(ico|jpg)$
 
 - url: /.*
   script: main.app
