@@ -13,7 +13,6 @@ from google.appengine.runtime import apiproxy_errors
 from urllib3.contrib.appengine import AppEnginePlatformWarning
 
 warnings.simplefilter("ignore", AppEnginePlatformWarning)
-THUMB_URL = 'https://countmeinbot.appspot.com/thumb.jpg'
 
 class TelegramPage(webapp2.RequestHandler):
     RECOGNISED_ERRORS = ['u\'Bad Request: message is not modified\'',
@@ -71,6 +70,7 @@ class MainPage(webapp2.RequestHandler):
            'your friends in a private message. To do this, tap the button below or start ' + \
            'your message in any other chat with @countmeinbot and select one of your polls to send.'
     ERROR_OVER_QUOTA = 'Sorry, CountMeIn Bot is overloaded right now. Please try again later!'
+    THUMB_URL = 'https://countmeinbot.appspot.com/thumb.jpg'
 
     @staticmethod
     def deliver_poll(uid, poll):
@@ -284,7 +284,7 @@ class MainPage(webapp2.RequestHandler):
             reply_markup = poll.build_vote_buttons()
             result = {'type': 'article', 'id': qr_id, 'title': qr_title,
                       'description': qr_description, 'input_message_content': content,
-                      'reply_markup': reply_markup, 'thumb_url': THUMB_URL}
+                      'reply_markup': reply_markup, 'thumb_url': self.THUMB_URL}
             results.append(result)
 
         self.answer_inline_query(qid, results)
