@@ -1,33 +1,36 @@
-def is_surrogate(s, i):
-    if 0xD800 <= ord(s[i]) <= 0xDBFF:
+"""Contains util functions"""
+
+def is_surrogate(string, i):
+    if 0xD800 <= ord(string[i]) <= 0xDBFF:
         try:
-            l = s[i + 1]
+            char = string[i + 1]
         except IndexError:
             return False
-        if 0xDC00 <= ord(l) <= 0xDFFF:
+        if 0xDC00 <= ord(char) <= 0xDFFF:
             return True
         else:
-            raise ValueError("Illegal UTF-16 sequence: %r" % s[i:i + 2])
+            raise ValueError("Illegal UTF-16 sequence: %r" % string[i:i + 2])
     else:
         return False
 
-def uslice(s, start, end):
-    l = len(s)
+def uslice(string, start, end):
+    length = len(string)
     i = 0
-    while i < start and i < l:
-        if is_surrogate(s, i):
+    while i < start and i < length:
+        if is_surrogate(string, i):
             start += 1
             end += 1
             i += 1
         i += 1
-    while i < end and i < l:
-        if is_surrogate(s, i):
+    while i < end and i < length:
+        if is_surrogate(string, i):
             end += 1
             i += 1
         i += 1
-    return s[start:end]
+    return string[start:end]
 
-flatten = lambda l: [item for sublist in l for item in sublist]
+def flatten(lst):
+    return [item for sublist in lst for item in sublist]
 
 def strip_html_symbols(text):
     return text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
