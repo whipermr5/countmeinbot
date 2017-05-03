@@ -240,13 +240,15 @@ class MainPage(webapp2.RequestHandler):
                            switch_pm_text='Create new poll', switch_pm_parameter='new')
 
     def write_request(self, method_name, **kwargs):
-        payload = kwargs.copy()
-        payload['method'] = method_name
-        output = json.dumps(payload)
+        request_data = kwargs.copy()
+        request_data['method'] = method_name
+        payload = json.dumps(request_data)
+
         self.response.headers['Content-Type'] = 'application/json'
-        self.response.write(output)
+        self.response.write(payload)
+
         logging.info('Request sent in response: ' + method_name)
-        logging.debug(output)
+        logging.debug(payload)
 
     def handle_exception(self, exception, debug):
         if isinstance(exception, apiproxy_errors.OverQuotaError):
