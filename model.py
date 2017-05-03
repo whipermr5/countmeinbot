@@ -7,20 +7,20 @@ import util
 from google.appengine.ext import ndb
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton
 
-class Model(ndb.Model):
-    @classmethod
-    def populate_by_id(cls, id, **kwargs):
-        entity = cls.get_by_id(id) or cls(id=id)
-        entity.populate(**kwargs)
-        entity.put()
-
-class User(Model):
+class User(ndb.Model):
     first_name = ndb.TextProperty()
     last_name = ndb.TextProperty()
     username = ndb.StringProperty(indexed=False)
 
     created = ndb.DateTimeProperty(auto_now_add=True)
     updated = ndb.DateTimeProperty(auto_now=True, indexed=False)
+
+    @classmethod
+    def populate_by_id(cls, id, **kwargs):  # pylint: disable=redefined-builtin, invalid-name
+    # ignore warnings due to argument named "id" for consistency with similar ndb methods
+        entity = cls.get_by_id(id) or cls(id=id)
+        entity.populate(**kwargs)
+        entity.put()
 
     def get_description(self):
         output = u'{}'.format(self.first_name)
