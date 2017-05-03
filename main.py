@@ -232,22 +232,20 @@ class MainPage(webapp2.RequestHandler):
 
     def answer_callback_query(self, status):
         qid = self.update.callback_query.id
-        payload = {'method': 'answerCallbackQuery', 'callback_query_id': qid, 'text': status}
-        output = json.dumps(payload)
-        self.response.headers['Content-Type'] = 'application/json'
-        self.response.write(output)
-        logging.info('Answered callback query!')
-        logging.debug(output)
+        self.write_request('answerCallbackQuery', callback_query_id=qid, text=status)
 
     def answer_inline_query(self, results):
         qid = self.update.inline_query.id
-        payload = {'method': 'answerInlineQuery', 'inline_query_id': qid, 'results': results,
-                   'switch_pm_text': 'Create new poll', 'switch_pm_parameter': 'new',
-                   'cache_time': 0}
+        self.write_request('answerInlineQuery', inline_query_id=qid, results=results, cache_time=0,
+                           switch_pm_text='Create new poll', switch_pm_parameter='new')
+
+    def write_request(self, method_name, **kwargs):
+        payload = kwargs.copy()
+        payload['method'] = method_name
         output = json.dumps(payload)
         self.response.headers['Content-Type'] = 'application/json'
         self.response.write(output)
-        logging.info('Answered inline query!')
+        logging.info('Request sent in response: ' + method_name)
         logging.debug(output)
 
     def handle_exception(self, exception, debug):
