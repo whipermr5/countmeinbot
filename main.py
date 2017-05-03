@@ -72,6 +72,11 @@ class MainPage(webapp2.RequestHandler):
            'your message in any other chat with @countmeinbot and select one of your polls to send.'
     ERROR_OVER_QUOTA = 'Sorry, CountMeIn Bot is overloaded right now. Please try again later!'
 
+    @staticmethod
+    def deliver_poll(uid, poll):
+        send_message(0.5, chat_id=uid, text=poll.render_text(), parse_mode='HTML',
+                     reply_markup=poll.build_admin_buttons())
+
     def post(self):
         logging.debug(self.request.body)
         update = telegram.Update.de_json(json.loads(self.request.body), None)
@@ -109,7 +114,7 @@ class MainPage(webapp2.RequestHandler):
                 option_count = len(poll.options)
                 if option_count > 0:
                     send_message(chat_id=uid, text=self.DONE)
-                    deliver_poll(uid, poll)
+                    self.deliver_poll(uid, poll)
                     memcache.delete(uid)
                 else:
                     send_message(chat_id=uid, text=self.PREMATURE_DONE)
@@ -137,7 +142,7 @@ class MainPage(webapp2.RequestHandler):
                 poll = Poll.get_by_id(poll_id)
                 if poll.admin_uid != uid:
                     raise Exception
-                deliver_poll(uid, poll)
+                self.deliver_poll(uid, poll)
                 memcache.delete(uid)
             except:
                 send_message(chat_id=uid, text=self.HELP)
@@ -165,7 +170,7 @@ class MainPage(webapp2.RequestHandler):
                     send_message(chat_id=uid, text=self.NEXT_OPTION)
                 else:
                     send_message(chat_id=uid, text=self.DONE)
-                    deliver_poll(uid, poll)
+                    self.deliver_poll(uid, poll)
                     memcache.delete(uid)
 
             else:
@@ -301,10 +306,6 @@ class MainPage(webapp2.RequestHandler):
 
         logging.exception(exception)
         self.abort(500)
-
-def deliver_poll(uid, poll):
-    send_message(0.5, chat_id=uid, text=poll.render_text(), parse_mode='HTML',
-                 reply_markup=poll.build_admin_buttons())
 
 def send_message(countdown=0, **kwargs):
     return telegram_request('send_message', countdown=countdown, **kwargs)
