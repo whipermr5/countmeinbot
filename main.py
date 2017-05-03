@@ -105,10 +105,10 @@ class MainPage(webapp2.RequestHandler):
                 poll_id = int(text[6:])
                 poll = Poll.get_by_id(poll_id)
                 if poll.admin_uid != uid:
-                    raise Exception
+                    raise ValueError
                 self.deliver_poll(uid, poll)
                 memcache.delete(uid)
-            except:
+            except ValueError:
                 backend.send_message(chat_id=uid, text=self.HELP)
 
         else:
