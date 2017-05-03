@@ -3,6 +3,7 @@ import warnings
 import json
 
 import util
+import backend
 from model import User, Respondent, Poll, Option
 from secrets import BOT_TOKEN
 
@@ -13,45 +14,6 @@ from google.appengine.runtime import apiproxy_errors
 from urllib3.contrib.appengine import AppEnginePlatformWarning
 
 warnings.simplefilter("ignore", AppEnginePlatformWarning)
-
-class TelegramPage(webapp2.RequestHandler):
-    RECOGNISED_ERRORS = ['u\'Bad Request: message is not modified\'',
-                         'u\'Bad Request: message to edit not found\'',
-                         'Message_id_invalid']
-    RECOGNISED_ERROR_URLFETCH = 'urlfetch.Fetch()'
-
-    def post(self, method_name):
-        bot = telegram.Bot(token=BOT_TOKEN)
-
-        logging.debug(self.request.body)
-
-        kwargs = json.loads(self.request.body)
-        getattr(bot, method_name)(**kwargs)
-
-        logging.info('Success!')
-
-    def handle_exception(self, exception, debug):
-        if isinstance(exception, telegram.error.NetworkError):
-            if str(exception) in self.RECOGNISED_ERRORS:
-                logging.info(exception)
-                return
-
-            logging.warning(exception)
-
-        elif isinstance(exception, telegram.error.Unauthorized):
-            logging.info(exception)
-            return
-
-        elif isinstance(exception, telegram.error.RetryAfter):
-            logging.warning(exception)
-
-        elif self.RECOGNISED_ERROR_URLFETCH in str(exception):
-            logging.warning(exception)
-
-        else:
-            logging.error(exception)
-
-        self.abort(500)
 
 class FrontPage(webapp2.RequestHandler):
     def get(self):
@@ -74,8 +36,8 @@ class MainPage(webapp2.RequestHandler):
 
     @staticmethod
     def deliver_poll(uid, poll):
-        send_message(0.5, chat_id=uid, text=poll.render_text(), parse_mode='HTML',
-                     reply_markup=poll.build_admin_buttons())
+        backend.send_message(0.5, chat_id=uid, text=poll.render_text(), parse_mode='HTML',
+                             reply_markup=poll.build_admin_buttons())
 
     def post(self):
         logging.debug(self.request.body)
@@ -104,7 +66,7 @@ class MainPage(webapp2.RequestHandler):
         responding_to = memcache.get(uid)
 
         if text.startswith('/start'):
-            send_message(chat_id=uid, text=self.NEW_POLL)
+            backend.send_message(chat_id=uid, text=self.NEW_POLL)
             memcache.set(uid, value='START', time=3600)
 
         elif text == '/done':
@@ -113,13 +75,13 @@ class MainPage(webapp2.RequestHandler):
                 poll = Poll.get_by_id(poll_id)
                 option_count = len(poll.options)
                 if option_count > 0:
-                    send_message(chat_id=uid, text=self.DONE)
+                    backend.send_message(chat_id=uid, text=self.DONE)
                     self.deliver_poll(uid, poll)
                     memcache.delete(uid)
                 else:
-                    send_message(chat_id=uid, text=self.PREMATURE_DONE)
+                    backend.send_message(chat_id=uid, text=self.PREMATURE_DONE)
             else:
-                send_message(chat_id=uid, text=self.HELP)
+                backend.send_message(chat_id=uid, text=self.HELP)
 
         elif text == '/polls':
             header = [util.make_html_bold('Your polls')]
@@ -133,7 +95,7 @@ class MainPage(webapp2.RequestHandler):
 
             output = u'\n\n'.join(header + body + footer)
 
-            send_message(chat_id=uid, text=output, parse_mode='HTML')
+            backend.send_message(chat_id=uid, text=output, parse_mode='HTML')
             memcache.delete(uid)
 
         elif text.startswith('/view_'):
@@ -145,19 +107,19 @@ class MainPage(webapp2.RequestHandler):
                 self.deliver_poll(uid, poll)
                 memcache.delete(uid)
             except:
-                send_message(chat_id=uid, text=self.HELP)
+                backend.send_message(chat_id=uid, text=self.HELP)
 
         else:
             if not responding_to:
-                send_message(chat_id=uid, text=self.HELP)
+                backend.send_message(chat_id=uid, text=self.HELP)
 
             elif responding_to == 'START':
                 new_poll = Poll.new(admin_uid=uid, title=text)
                 poll_key = new_poll.put()
                 poll_id = poll_key.id()
                 bold_title = util.make_html_bold_first_line(text)
-                send_message(chat_id=uid, text=self.FIRST_OPTION.format(bold_title),
-                             parse_mode='HTML')
+                backend.send_message(chat_id=uid, text=self.FIRST_OPTION.format(bold_title),
+                                     parse_mode='HTML')
                 memcache.set(uid, value='OPT {}'.format(poll_id), time=3600)
 
             elif responding_to.startswith('OPT '):
@@ -167,14 +129,14 @@ class MainPage(webapp2.RequestHandler):
                 poll.put()
                 option_count = len(poll.options)
                 if option_count < 10:
-                    send_message(chat_id=uid, text=self.NEXT_OPTION)
+                    backend.send_message(chat_id=uid, text=self.NEXT_OPTION)
                 else:
-                    send_message(chat_id=uid, text=self.DONE)
+                    backend.send_message(chat_id=uid, text=self.DONE)
                     self.deliver_poll(uid, poll)
                     memcache.delete(uid)
 
             else:
-                send_message(chat_id=uid, text=self.HELP)
+                backend.send_message(chat_id=uid, text=self.HELP)
                 memcache.delete(uid)
 
     def handle_callback_query(self, callback_query):
@@ -210,9 +172,9 @@ class MainPage(webapp2.RequestHandler):
         poll = Poll.get_by_id(poll_id)
         if not poll:
             if imid:
-                telegram_request('edit_message_reply_markup', inline_message_id=imid)
+                backend.api_call('edit_message_reply_markup', inline_message_id=imid)
             else:
-                telegram_request('edit_message_reply_markup', chat_id=chat_id, message_id=mid)
+                backend.api_call('edit_message_reply_markup', chat_id=chat_id, message_id=mid)
             self.answer_callback_query(qid, 'Sorry, this poll has been deleted')
             return
 
@@ -221,34 +183,34 @@ class MainPage(webapp2.RequestHandler):
             updated_text = poll.render_text()
 
             if imid:
-                telegram_request('edit_message_text', inline_message_id=imid,
+                backend.api_call('edit_message_text', inline_message_id=imid,
                                  text=updated_text, parse_mode='HTML',
                                  reply_markup=poll.build_vote_buttons())
             else:
-                telegram_request('edit_message_text', chat_id=chat_id, message_id=mid,
+                backend.api_call('edit_message_text', chat_id=chat_id, message_id=mid,
                                  text=updated_text, parse_mode='HTML',
                                  reply_markup=poll.build_vote_buttons(admin=True))
 
         elif action == 'refresh' and not imid:
             status = 'Results updated!'
             updated_text = poll.render_text()
-            telegram_request('edit_message_text', chat_id=chat_id, message_id=mid,
+            backend.api_call('edit_message_text', chat_id=chat_id, message_id=mid,
                              text=updated_text, parse_mode='HTML',
                              reply_markup=poll.build_admin_buttons())
 
         elif action == 'vote' and not imid:
             status = 'You may now vote!'
-            telegram_request('edit_message_reply_markup', chat_id=chat_id, message_id=mid,
+            backend.api_call('edit_message_reply_markup', chat_id=chat_id, message_id=mid,
                              reply_markup=poll.build_vote_buttons(admin=True))
 
         elif action == 'delete' and not imid:
             status = 'Poll deleted!'
             poll.key.delete()
-            telegram_request('edit_message_reply_markup', chat_id=chat_id, message_id=mid)
+            backend.api_call('edit_message_reply_markup', chat_id=chat_id, message_id=mid)
 
         elif action == 'back' and not imid:
             status = ''
-            telegram_request('edit_message_reply_markup', chat_id=chat_id, message_id=mid,
+            backend.api_call('edit_message_reply_markup', chat_id=chat_id, message_id=mid,
                              reply_markup=poll.build_admin_buttons())
 
         else:
@@ -307,21 +269,10 @@ class MainPage(webapp2.RequestHandler):
         logging.exception(exception)
         self.abort(500)
 
-def send_message(countdown=0, **kwargs):
-    return telegram_request('send_message', countdown=countdown, **kwargs)
-
-def telegram_request(method_name, countdown=0, **kwargs):
-    payload = json.dumps(kwargs)
-    taskqueue.add(queue_name='outbox', url='/telegram/' + method_name, payload=payload,
-                  countdown=countdown)
-    countdown_details = ' (countdown {}s)'.format(countdown) if countdown else ''
-    logging.info('Request queued: {}{}'.format(method_name, countdown_details))
-    logging.debug(payload)
-
 app = webapp2.WSGIApplication([
     webapp2.Route('/', FrontPage),
     webapp2.Route('/' + BOT_TOKEN, MainPage),
-    webapp2.Route('/telegram/<method_name>', TelegramPage),
+    webapp2.Route('/telegram/<method_name>', backend.TelegramPage),
     webapp2.Route('/migrate', 'admin.MigratePage'),
     webapp2.Route('/polls', 'admin.PollsPage'),
     webapp2.Route('/poll/<pid>', 'admin.PollPage'),
