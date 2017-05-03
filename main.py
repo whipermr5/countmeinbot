@@ -206,15 +206,6 @@ class MainPage(webapp2.RequestHandler):
 
         self.answer_callback_query(status)
 
-    def answer_callback_query(self, status):
-        qid = self.update.callback_query.id
-        payload = {'method': 'answerCallbackQuery', 'callback_query_id': qid, 'text': status}
-        output = json.dumps(payload)
-        self.response.headers['Content-Type'] = 'application/json'
-        self.response.write(output)
-        logging.info('Answered callback query!')
-        logging.debug(output)
-
     def handle_inline_query(self):
         inline_query = self.update.inline_query
 
@@ -238,6 +229,15 @@ class MainPage(webapp2.RequestHandler):
             results.append(result)
 
         self.answer_inline_query(results)
+
+    def answer_callback_query(self, status):
+        qid = self.update.callback_query.id
+        payload = {'method': 'answerCallbackQuery', 'callback_query_id': qid, 'text': status}
+        output = json.dumps(payload)
+        self.response.headers['Content-Type'] = 'application/json'
+        self.response.write(output)
+        logging.info('Answered callback query!')
+        logging.debug(output)
 
     def answer_inline_query(self, results):
         qid = self.update.inline_query.id
