@@ -144,15 +144,12 @@ class MainPage(webapp2.RequestHandler):
     def handle_callback_query(self):
         callback_query = self.update.callback_query
 
-        data = callback_query.data
+        extract_user_data = lambda user: (user.id, {'first_name': user.first_name,
+                                                    'last_name': user.last_name,
+                                                    'username': user.username})
+        uid, user_profile = extract_user_data(callback_query.from_user)
 
-        uid = callback_query.from_user.id
-        first_name = callback_query.from_user.first_name
-        last_name = callback_query.from_user.last_name
-        username = callback_query.from_user.username
-
-        Respondent.populate_by_id(uid,
-                                  first_name=first_name, last_name=last_name, username=username)
+        Respondent.populate_by_id(uid, **user_profile)
 
         imid = callback_query.inline_message_id
         chat_id = callback_query.message.chat.id if imid else None
@@ -160,7 +157,7 @@ class MainPage(webapp2.RequestHandler):
         is_admin = not imid
 
         try:
-            params = data.split()
+            params = callback_query.data.split()
             poll_id = int(params[0])
             action = params[1]
         except (AttributeError, IndexError, ValueError):
@@ -176,18 +173,16 @@ class MainPage(webapp2.RequestHandler):
             return
 
         if action.isdigit():
-            poll, status = Poll.toggle(poll_id, int(action), uid, first_name, last_name)
-            updated_text = poll.render_text()
-            vote_buttons = poll.build_vote_buttons(admin=is_admin)
+            poll, status = Poll.toggle(poll_id, int(action), uid, user_profile)
             backend.api_call('edit_message_text',
                              inline_message_id=imid, chat_id=chat_id, message_id=mid,
-                             text=updated_text, parse_mode='HTML', reply_markup=vote_buttons)
+                             text=poll.render_text(), parse_mode='HTML',
+                             reply_markup=poll.build_vote_buttons(admin=is_admin))
 
         elif action == 'refresh' and is_admin:
             status = 'Results updated!'
-            updated_text = poll.render_text()
             backend.api_call('edit_message_text', chat_id=chat_id, message_id=mid,
-                             text=updated_text, parse_mode='HTML',
+                             text=poll.render_text(), parse_mode='HTML',
                              reply_markup=poll.build_admin_buttons())
 
         elif action == 'vote' and is_admin:
@@ -196,8 +191,8 @@ class MainPage(webapp2.RequestHandler):
                              reply_markup=poll.build_vote_buttons(admin=True))
 
         elif action == 'delete' and is_admin:
-            status = 'Poll deleted!'
             poll.key.delete()
+            status = 'Poll deleted!'
             backend.api_call('edit_message_reply_markup', chat_id=chat_id, message_id=mid)
 
         elif action == 'back' and is_admin:
@@ -206,9 +201,8 @@ class MainPage(webapp2.RequestHandler):
                              reply_markup=poll.build_admin_buttons())
 
         else:
+            status = 'Invalid data. This attempt will be logged!'
             logging.warning('Invalid callback query data')
-            self.answer_callback_query('Invalid data. This attempt will be logged!')
-            return
 
         self.answer_callback_query(status)
 

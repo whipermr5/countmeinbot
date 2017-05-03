@@ -53,13 +53,13 @@ class Poll(ndb.Model):
 
     @staticmethod
     @ndb.transactional
-    def toggle(poll_id, opt_id, uid, first_name, last_name):
+    def toggle(poll_id, opt_id, uid, user_profile):
         poll = Poll.get_by_id(poll_id)
         if not poll:
             return None, 'Sorry, this poll has been deleted'
         if opt_id >= len(poll.options):
             return None, 'Sorry, that\'s an invalid option'
-        status = poll.options[opt_id].toggle(uid, first_name, last_name)
+        status = poll.options[opt_id].toggle(uid, user_profile)
         poll.put()
         return poll, status
 
@@ -124,13 +124,13 @@ class Option(object):
         self.title = title
         self.people = people
 
-    def toggle(self, uid, first_name, last_name):
+    def toggle(self, uid, user_profile):
         uid = str(uid)
         if self.people.get(uid):
             self.people.pop(uid, None)
             action = u'removed from'
         else:
-            self.people[uid] = (first_name, last_name)
+            self.people[uid] = user_profile['first_name'], user_profile['last_name']
             action = u'added to'
         return u'Your name was {} {}!'.format(action, self.title)
 
