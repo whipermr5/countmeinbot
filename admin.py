@@ -3,7 +3,8 @@
 from model import Poll
 
 import webapp2
-from google.appengine.ext import ndb
+from google.appengine.ext.ndb.query import Cursor
+from google.appengine.api.datastore_errors import BadValueError
 
 class MigratePage(webapp2.RequestHandler):
     def get(self):
@@ -15,25 +16,26 @@ class PollPage(webapp2.RequestHandler):
         try:
             pid = int(pid)
             poll = Poll.get_by_id(pid)
-            poll_text = poll.render_text()
-        except:
+            if not poll:
+                raise ValueError
+        except ValueError:
             self.response.set_status(404)
             self.response.write('Invalid poll ID')
             return
-        self.response.write('<p>' + poll_text.replace('\n', '<br>\n') + '</p>')
+        self.response.write(poll.render_html())
 
 class PollsPage(webapp2.RequestHandler):
     def get(self):
         try:
-            cursor = ndb.query.Cursor(urlsafe=self.request.get('cursor'))
-        except:
+            cursor = Cursor.from_websafe_string(self.request.get('cursor'))
+        except BadValueError:
             cursor = None
 
         try:
             limit = int(self.request.get('limit'))
             if limit <= 0:
-                raise Exception
-        except:
+                raise ValueError
+        except (TypeError, ValueError):
             limit = 100
 
         query = Poll.query().order(-Poll.created)
@@ -45,5 +47,5 @@ class PollsPage(webapp2.RequestHandler):
         if not has_more:
             return
 
-        more_url = '?cursor={}&limit={}'.format(next_cursor.urlsafe(), limit)
+        more_url = '?cursor={}&limit={}'.format(next_cursor.to_websafe_string(), limit)
         self.response.write('<p><a href="{}">More</a></p>'.format(more_url))
