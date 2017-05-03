@@ -77,8 +77,7 @@ class MainPage(webapp2.RequestHandler):
             if responding_to and responding_to.startswith('OPT '):
                 poll_id = int(responding_to[4:])
                 poll = Poll.get_by_id(poll_id)
-                option_count = len(poll.options)
-                if option_count > 0:
+                if poll.options:
                     backend.send_message(chat_id=uid, text=self.DONE)
                     self.deliver_poll(uid, poll)
                     memcache.delete(uid)
@@ -90,8 +89,7 @@ class MainPage(webapp2.RequestHandler):
         elif text == '/polls':
             header = [util.make_html_bold('Your polls')]
 
-            query = Poll.query(Poll.admin_uid == uid).order(-Poll.created)
-            recent_polls = query.fetch(50)
+            recent_polls = Poll.query(Poll.admin_uid == uid).order(-Poll.created).fetch(50)
             body = [u'{}. {}'.format(i, poll.generate_poll_summary_with_link()) for i, poll
                     in enumerate(recent_polls)]
 
@@ -118,9 +116,8 @@ class MainPage(webapp2.RequestHandler):
                 backend.send_message(chat_id=uid, text=self.HELP)
 
             elif responding_to == 'START':
-                new_poll = Poll.new(admin_uid=uid, title=text)
-                poll_key = new_poll.put()
-                poll_id = poll_key.id()
+                new_poll_key = Poll.new(admin_uid=uid, title=text).put()
+                poll_id = new_poll_key.id()
                 bold_title = util.make_html_bold_first_line(text)
                 backend.send_message(chat_id=uid, text=self.FIRST_OPTION.format(bold_title),
                                      parse_mode='HTML')
@@ -131,8 +128,7 @@ class MainPage(webapp2.RequestHandler):
                 poll = Poll.get_by_id(poll_id)
                 poll.options.append(Option(text))
                 poll.put()
-                option_count = len(poll.options)
-                if option_count < 10:
+                if len(poll.options) < 10:
                     backend.send_message(chat_id=uid, text=self.NEXT_OPTION)
                 else:
                     backend.send_message(chat_id=uid, text=self.DONE)
