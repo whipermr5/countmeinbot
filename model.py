@@ -93,6 +93,20 @@ class Poll(ndb.Model):
         footer = [u'\U0001f465 ' + self.generate_respondents_summary()]
         return u'\n\n'.join(header + body + footer)
 
+    def render_html(self):
+        from datetime import timedelta
+
+        user = User.get_by_id(int(self.admin_uid))
+        user_description = user.get_description() if user else 'unknown ({})'.format(self.admin_uid)
+        timestamp = (self.created + timedelta(hours=8)).strftime('%a, %d %b \'%y, %H:%M:%S')
+        details = u' <small>by {} on {}</small>'.format(user_description, timestamp)
+
+        text = self.render_text()
+        idx = text.find('\n')
+        text = (text[:idx] + details + text[idx:])
+
+        return '<p>' + text.replace('\n', '<br>\n') + '</p>'
+
     def build_vote_buttons(self, admin=False):
         poll_id = self.key.id()
         buttons = []
