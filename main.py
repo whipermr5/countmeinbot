@@ -8,7 +8,6 @@ from model import User, Respondent, Poll, Option
 from secrets import BOT_TOKEN
 
 import webapp2
-import telegram
 from google.appengine.api import taskqueue, memcache
 from google.appengine.runtime import apiproxy_errors
 from urllib3.contrib.appengine import AppEnginePlatformWarning
@@ -41,7 +40,7 @@ class MainPage(webapp2.RequestHandler):
 
     def post(self):
         logging.debug(self.request.body)
-        update = telegram.Update.de_json(json.loads(self.request.body), None)
+        update = backend.parse_update(self.request.body)
 
         if update.message:
             logging.info('Processing incoming message')

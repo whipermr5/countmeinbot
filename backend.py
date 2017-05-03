@@ -48,6 +48,8 @@ class TelegramPage(webapp2.RequestHandler):
 
         self.abort(500)
 
+def parse_update(payload):
+    return telegram.Update.de_json(json.loads(payload), None)
 
 def api_call(method_name, countdown=0, **kwargs):
     payload = json.dumps(kwargs)
