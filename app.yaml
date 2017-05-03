@@ -3,15 +3,7 @@ api_version: 1
 threadsafe: yes
 
 handlers:
-- url: /(migrate|polls)
-  script: main.app
-  login: admin
-
-- url: /telegram/.*
-  script: main.app
-  login: admin
-
-- url: /poll/.*
+- url: /(migrate|polls|(telegram|poll)/.*)
   script: main.app
   login: admin
 
