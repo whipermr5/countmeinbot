@@ -8,7 +8,7 @@ from model import User, Respondent, Poll, Option
 from secrets import BOT_TOKEN
 
 import webapp2
-from google.appengine.api import taskqueue, memcache
+from google.appengine.api import memcache
 from google.appengine.runtime import apiproxy_errors
 from urllib3.contrib.appengine import AppEnginePlatformWarning
 
@@ -53,15 +53,16 @@ class MainPage(webapp2.RequestHandler):
             self.handle_inline_query(update.inline_query)
 
     def handle_message(self, message):
-        u = message.from_user
-        User.populate_by_id(u.id,
-                            first_name=u.first_name, last_name=u.last_name, username=u.username)
-        uid = str(message.chat.id)
+        User.populate_by_id(message.from_user.id,
+                            first_name=message.from_user.first_name,
+                            last_name=message.from_user.last_name,
+                            username=message.from_user.username)
 
         if not message.text:
             return
 
         text = message.text
+        uid = str(message.chat.id)
         responding_to = memcache.get(uid)
 
         if text.startswith('/start'):
