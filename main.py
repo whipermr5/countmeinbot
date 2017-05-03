@@ -272,7 +272,7 @@ class MainPage(webapp2.RequestHandler):
         logging.exception(exception)
         self.abort(500)
 
-app = webapp2.WSGIApplication([
+APP = webapp2.WSGIApplication([
     webapp2.Route('/', FrontPage),
     webapp2.Route('/' + BOT_TOKEN, MainPage),
     webapp2.Route('/telegram/<method_name>', backend.TelegramPage),

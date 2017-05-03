@@ -4,7 +4,7 @@ threadsafe: yes
 
 handlers:
 - url: /(migrate|polls|(telegram|poll)/.*)
-  script: main.app
+  script: main.APP
   login: admin
 
 - url: /(.*\.(ico|jpg))$
@@ -12,7 +12,7 @@ handlers:
   upload: img/.*\.(ico|jpg)$
 
 - url: /.*
-  script: main.app
+  script: main.APP
 
 libraries:
 - name: webapp2
