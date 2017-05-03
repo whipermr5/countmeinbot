@@ -153,9 +153,9 @@ class MainPage(webapp2.RequestHandler):
                                   first_name=first_name, last_name=last_name, username=username)
 
         imid = callback_query.inline_message_id
-        if not imid:
-            chat_id = callback_query.message.chat.id
-            mid = callback_query.message.message_id
+        chat_id = callback_query.message.chat.id if imid else None
+        mid = callback_query.message.message_id if imid else None
+        is_admin = not imid
 
         try:
             params = data.split()
@@ -168,44 +168,37 @@ class MainPage(webapp2.RequestHandler):
 
         poll = Poll.get_by_id(poll_id)
         if not poll:
-            if imid:
-                backend.api_call('edit_message_reply_markup', inline_message_id=imid)
-            else:
-                backend.api_call('edit_message_reply_markup', chat_id=chat_id, message_id=mid)
+            backend.api_call('edit_message_reply_markup',
+                             inline_message_id=imid, chat_id=chat_id, message_id=mid)
             self.answer_callback_query('Sorry, this poll has been deleted')
             return
 
         if action.isdigit():
             poll, status = Poll.toggle(poll_id, int(action), uid, first_name, last_name)
             updated_text = poll.render_text()
+            vote_buttons = poll.build_vote_buttons(admin=is_admin)
+            backend.api_call('edit_message_text',
+                             inline_message_id=imid, chat_id=chat_id, message_id=mid,
+                             text=updated_text, parse_mode='HTML', reply_markup=vote_buttons)
 
-            if imid:
-                backend.api_call('edit_message_text', inline_message_id=imid,
-                                 text=updated_text, parse_mode='HTML',
-                                 reply_markup=poll.build_vote_buttons())
-            else:
-                backend.api_call('edit_message_text', chat_id=chat_id, message_id=mid,
-                                 text=updated_text, parse_mode='HTML',
-                                 reply_markup=poll.build_vote_buttons(admin=True))
-
-        elif action == 'refresh' and not imid:
+        elif action == 'refresh' and is_admin:
             status = 'Results updated!'
             updated_text = poll.render_text()
             backend.api_call('edit_message_text', chat_id=chat_id, message_id=mid,
                              text=updated_text, parse_mode='HTML',
                              reply_markup=poll.build_admin_buttons())
 
-        elif action == 'vote' and not imid:
+        elif action == 'vote' and is_admin:
             status = 'You may now vote!'
             backend.api_call('edit_message_reply_markup', chat_id=chat_id, message_id=mid,
                              reply_markup=poll.build_vote_buttons(admin=True))
 
-        elif action == 'delete' and not imid:
+        elif action == 'delete' and is_admin:
             status = 'Poll deleted!'
             poll.key.delete()
             backend.api_call('edit_message_reply_markup', chat_id=chat_id, message_id=mid)
 
-        elif action == 'back' and not imid:
+        elif action == 'back' and is_admin:
             status = ''
             backend.api_call('edit_message_reply_markup', chat_id=chat_id, message_id=mid,
                              reply_markup=poll.build_admin_buttons())
