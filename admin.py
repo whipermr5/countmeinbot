@@ -1,6 +1,6 @@
 """Handlers for admin features"""
 
-from main import Poll, User
+from model import Poll, User
 
 import webapp2
 from google.appengine.ext import ndb
