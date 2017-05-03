@@ -161,7 +161,7 @@ class MainPage(webapp2.RequestHandler):
             params = data.split()
             poll_id = int(params[0])
             action = params[1]
-        except:
+        except (AttributeError, IndexError, ValueError):
             logging.warning('Invalid callback query data')
             self.answer_callback_query('Invalid data. This attempt will be logged!')
             return
