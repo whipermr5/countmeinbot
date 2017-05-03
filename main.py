@@ -1,3 +1,5 @@
+"""Main CountMeIn Bot app"""
+
 import logging
 import warnings
 import json
