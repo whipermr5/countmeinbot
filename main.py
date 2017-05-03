@@ -13,14 +13,14 @@ from google.appengine.runtime import apiproxy_errors
 from urllib3.contrib.appengine import AppEnginePlatformWarning
 
 warnings.simplefilter("ignore", AppEnginePlatformWarning)
-
-RECOGNISED_ERRORS = ['u\'Bad Request: message is not modified\'',
-                     'u\'Bad Request: message to edit not found\'',
-                     'Message_id_invalid']
-RECOGNISED_ERROR_URLFETCH = 'urlfetch.Fetch()'
 THUMB_URL = 'https://countmeinbot.appspot.com/thumb.jpg'
 
 class TelegramPage(webapp2.RequestHandler):
+    RECOGNISED_ERRORS = ['u\'Bad Request: message is not modified\'',
+                         'u\'Bad Request: message to edit not found\'',
+                         'Message_id_invalid']
+    RECOGNISED_ERROR_URLFETCH = 'urlfetch.Fetch()'
+
     def post(self, method_name):
         bot = telegram.Bot(token=BOT_TOKEN)
 
@@ -33,7 +33,7 @@ class TelegramPage(webapp2.RequestHandler):
 
     def handle_exception(self, exception, debug):
         if isinstance(exception, telegram.error.NetworkError):
-            if str(exception) in RECOGNISED_ERRORS:
+            if str(exception) in self.RECOGNISED_ERRORS:
                 logging.info(exception)
                 return
 
@@ -46,7 +46,7 @@ class TelegramPage(webapp2.RequestHandler):
         elif isinstance(exception, telegram.error.RetryAfter):
             logging.warning(exception)
 
-        elif RECOGNISED_ERROR_URLFETCH in str(exception):
+        elif self.RECOGNISED_ERROR_URLFETCH in str(exception):
             logging.warning(exception)
 
         else:
