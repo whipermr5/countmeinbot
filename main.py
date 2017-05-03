@@ -33,6 +33,8 @@ class MainPage(webapp2.RequestHandler):
     ERROR_OVER_QUOTA = 'Sorry, CountMeIn Bot is overloaded right now. Please try again later!'
     THUMB_URL = 'https://countmeinbot.appspot.com/thumb.jpg'
 
+    update = None
+
     @staticmethod
     def deliver_poll(uid, poll):
         backend.send_message(0.5, chat_id=uid, text=poll.render_text(), parse_mode='HTML',
@@ -40,19 +42,21 @@ class MainPage(webapp2.RequestHandler):
 
     def post(self):
         logging.debug(self.request.body)
-        update = backend.parse_update(self.request.body)
+        self.update = backend.parse_update(self.request.body)
 
-        if update.message:
+        if self.update.message:
             logging.info('Processing incoming message')
-            self.handle_message(update.message)
-        elif update.callback_query:
+            self.handle_message()
+        elif self.update.callback_query:
             logging.info('Processing incoming callback query')
-            self.handle_callback_query(update.callback_query)
-        elif update.inline_query:
+            self.handle_callback_query()
+        elif self.update.inline_query:
             logging.info('Processing incoming inline query')
-            self.handle_inline_query(update.inline_query)
+            self.handle_inline_query()
 
-    def handle_message(self, message):
+    def handle_message(self):
+        message = self.update.message
+
         User.populate_by_id(message.from_user.id,
                             first_name=message.from_user.first_name,
                             last_name=message.from_user.last_name,
@@ -139,8 +143,9 @@ class MainPage(webapp2.RequestHandler):
                 backend.send_message(chat_id=uid, text=self.HELP)
                 memcache.delete(uid)
 
-    def handle_callback_query(self, callback_query):
-        qid = callback_query.id
+    def handle_callback_query(self):
+        callback_query = self.update.callback_query
+
         data = callback_query.data
 
         uid = callback_query.from_user.id
@@ -148,12 +153,8 @@ class MainPage(webapp2.RequestHandler):
         last_name = callback_query.from_user.last_name
         username = callback_query.from_user.username
 
-        try:
-            Respondent.populate_by_id(uid,
-                                      first_name=first_name, last_name=last_name, username=username)
-        except apiproxy_errors.OverQuotaError:
-            self.answer_callback_query(qid, self.ERROR_OVER_QUOTA)
-            return
+        Respondent.populate_by_id(uid,
+                                  first_name=first_name, last_name=last_name, username=username)
 
         imid = callback_query.inline_message_id
         if not imid:
@@ -166,7 +167,7 @@ class MainPage(webapp2.RequestHandler):
             action = params[1]
         except:
             logging.warning('Invalid callback query data')
-            self.answer_callback_query(qid, 'Invalid data. This attempt will be logged!')
+            self.answer_callback_query('Invalid data. This attempt will be logged!')
             return
 
         poll = Poll.get_by_id(poll_id)
@@ -175,7 +176,7 @@ class MainPage(webapp2.RequestHandler):
                 backend.api_call('edit_message_reply_markup', inline_message_id=imid)
             else:
                 backend.api_call('edit_message_reply_markup', chat_id=chat_id, message_id=mid)
-            self.answer_callback_query(qid, 'Sorry, this poll has been deleted')
+            self.answer_callback_query('Sorry, this poll has been deleted')
             return
 
         if action.isdigit():
@@ -215,12 +216,13 @@ class MainPage(webapp2.RequestHandler):
 
         else:
             logging.warning('Invalid callback query data')
-            self.answer_callback_query(qid, 'Invalid data. This attempt will be logged!')
+            self.answer_callback_query('Invalid data. This attempt will be logged!')
             return
 
-        self.answer_callback_query(qid, status)
+        self.answer_callback_query(status)
 
-    def answer_callback_query(self, qid, status):
+    def answer_callback_query(self, status):
+        qid = self.update.callback_query.id
         payload = {'method': 'answerCallbackQuery', 'callback_query_id': qid, 'text': status}
         output = json.dumps(payload)
         self.response.headers['Content-Type'] = 'application/json'
@@ -228,8 +230,9 @@ class MainPage(webapp2.RequestHandler):
         logging.info('Answered callback query!')
         logging.debug(output)
 
-    def handle_inline_query(self, inline_query):
-        qid = inline_query.id
+    def handle_inline_query(self):
+        inline_query = self.update.inline_query
+
         text = inline_query.query.lower()
 
         uid = str(inline_query.from_user.id)
@@ -249,9 +252,10 @@ class MainPage(webapp2.RequestHandler):
                       'reply_markup': reply_markup, 'thumb_url': self.THUMB_URL}
             results.append(result)
 
-        self.answer_inline_query(qid, results)
+        self.answer_inline_query(results)
 
-    def answer_inline_query(self, qid, results):
+    def answer_inline_query(self, results):
+        qid = self.update.inline_query.id
         payload = {'method': 'answerInlineQuery', 'inline_query_id': qid, 'results': results,
                    'switch_pm_text': 'Create new poll', 'switch_pm_parameter': 'new',
                    'cache_time': 0}
@@ -264,6 +268,14 @@ class MainPage(webapp2.RequestHandler):
     def handle_exception(self, exception, debug):
         if isinstance(exception, apiproxy_errors.OverQuotaError):
             logging.warning(exception)
+
+            if self.update.message:
+                pass
+            elif self.update.callback_query:
+                self.answer_callback_query(self.ERROR_OVER_QUOTA)
+            elif self.update.inline_query:
+                pass
+
             return
 
         logging.exception(exception)
