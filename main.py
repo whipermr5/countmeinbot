@@ -242,11 +242,15 @@ class MainPage(webapp2.RequestHandler):
             logging.warning(exception)
 
             if self.update.message:
-                pass
+                uid = str(self.update.message.chat.id)
+                backend.send_message(chat_id=uid, text=self.ERROR_OVER_QUOTA)
             elif self.update.callback_query:
                 self.answer_callback_query(self.ERROR_OVER_QUOTA)
             elif self.update.inline_query:
-                pass
+                result = {'type': 'article', 'id': 'OVER_QUOTA', 'thumb_url': self.THUMB_URL,
+                          'title': 'Sorry!', 'description': self.ERROR_OVER_QUOTA,
+                          'input_message_content': {'message_text': self.ERROR_OVER_QUOTA}}
+                self.answer_inline_query([result])
 
             return
 
