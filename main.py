@@ -75,18 +75,15 @@ class MainPage(webapp2.RequestHandler):
             backend.send_message(chat_id=uid, text=self.NEW_POLL)
             memcache.set(uid, value='START', time=3600)
 
-        elif text == '/done':
-            if responding_to and responding_to.startswith('OPT '):
-                poll_id = int(responding_to[4:])
-                poll = Poll.get_by_id(poll_id)
-                if poll.options:
-                    backend.send_message(chat_id=uid, text=self.DONE)
-                    self.deliver_poll(uid, poll)
-                    memcache.delete(uid)
-                else:
-                    backend.send_message(chat_id=uid, text=self.PREMATURE_DONE)
-            else:
-                backend.send_message(chat_id=uid, text=self.HELP)
+        elif text == '/done' and responding_to and responding_to.startswith('OPT '):
+            poll_id = int(responding_to[4:])
+            poll = Poll.get_by_id(poll_id)
+            if not poll.options:
+                backend.send_message(chat_id=uid, text=self.PREMATURE_DONE)
+                return
+            backend.send_message(chat_id=uid, text=self.DONE)
+            self.deliver_poll(uid, poll)
+            memcache.delete(uid)
 
         elif text == '/polls':
             header = [util.make_html_bold('Your polls')]
@@ -113,33 +110,29 @@ class MainPage(webapp2.RequestHandler):
             except ValueError:
                 backend.send_message(chat_id=uid, text=self.HELP)
 
-        else:
-            if not responding_to:
-                backend.send_message(chat_id=uid, text=self.HELP)
+        elif responding_to == 'START':
+            new_poll_key = Poll.new(admin_uid=uid, title=text).put()
+            poll_id = new_poll_key.id()
+            bold_title = util.make_html_bold_first_line(text)
+            backend.send_message(chat_id=uid, text=self.FIRST_OPTION.format(bold_title),
+                                 parse_mode='HTML')
+            memcache.set(uid, value='OPT {}'.format(poll_id), time=3600)
 
-            elif responding_to == 'START':
-                new_poll_key = Poll.new(admin_uid=uid, title=text).put()
-                poll_id = new_poll_key.id()
-                bold_title = util.make_html_bold_first_line(text)
-                backend.send_message(chat_id=uid, text=self.FIRST_OPTION.format(bold_title),
-                                     parse_mode='HTML')
-                memcache.set(uid, value='OPT {}'.format(poll_id), time=3600)
-
-            elif responding_to.startswith('OPT '):
-                poll_id = int(responding_to[4:])
-                poll = Poll.get_by_id(poll_id)
-                poll.options.append(Option(text))
-                poll.put()
-                if len(poll.options) < 10:
-                    backend.send_message(chat_id=uid, text=self.NEXT_OPTION)
-                else:
-                    backend.send_message(chat_id=uid, text=self.DONE)
-                    self.deliver_poll(uid, poll)
-                    memcache.delete(uid)
-
-            else:
-                backend.send_message(chat_id=uid, text=self.HELP)
+        elif responding_to and responding_to.startswith('OPT '):
+            poll_id = int(responding_to[4:])
+            poll = Poll.get_by_id(poll_id)
+            poll.options.append(Option(text))
+            poll.put()
+            if len(poll.options) >= 10:
+                backend.send_message(chat_id=uid, text=self.DONE)
+                self.deliver_poll(uid, poll)
                 memcache.delete(uid)
+                return
+            backend.send_message(chat_id=uid, text=self.NEXT_OPTION)
+
+        else:
+            backend.send_message(chat_id=uid, text=self.HELP)
+            memcache.delete(uid)
 
     def handle_callback_query(self):
         callback_query = self.update.callback_query
