@@ -37,11 +37,6 @@ class MainPage(webapp2.RequestHandler):
 
     update = None
 
-    @staticmethod
-    def deliver_poll(uid, poll):
-        backend.send_message(0.5, chat_id=uid, text=poll.render_text(), parse_mode='HTML',
-                             reply_markup=poll.build_admin_buttons())
-
     def post(self):
         logging.debug(self.request.body)
         self.update = backend.parse_update(self.request.body)
@@ -71,6 +66,10 @@ class MainPage(webapp2.RequestHandler):
         uid = str(message.chat.id)
         responding_to = memcache.get(uid)
 
+        def deliver_poll(poll):
+            backend.send_message(0.5, chat_id=uid, text=poll.render_text(), parse_mode='HTML',
+                                 reply_markup=poll.build_admin_buttons())
+
         if text.startswith('/start'):
             backend.send_message(chat_id=uid, text=self.NEW_POLL)
             memcache.set(uid, value='START', time=3600)
@@ -82,7 +81,7 @@ class MainPage(webapp2.RequestHandler):
                 backend.send_message(chat_id=uid, text=self.PREMATURE_DONE)
                 return
             backend.send_message(chat_id=uid, text=self.DONE)
-            self.deliver_poll(uid, poll)
+            deliver_poll(poll)
 
         elif text == '/polls':
             header = [util.make_html_bold('Your polls')]
@@ -102,7 +101,7 @@ class MainPage(webapp2.RequestHandler):
                 poll = Poll.get_by_id(int(text[6:]))
                 if not poll or poll.admin_uid != uid:
                     raise ValueError
-                self.deliver_poll(uid, poll)
+                deliver_poll(poll)
             except ValueError:
                 backend.send_message(chat_id=uid, text=self.HELP)
 
@@ -122,7 +121,7 @@ class MainPage(webapp2.RequestHandler):
                 backend.send_message(chat_id=uid, text=self.NEXT_OPTION)
                 return
             backend.send_message(chat_id=uid, text=self.DONE)
-            self.deliver_poll(uid, poll)
+            deliver_poll(poll)
 
         else:
             backend.send_message(chat_id=uid, text=self.HELP)
