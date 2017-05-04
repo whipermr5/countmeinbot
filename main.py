@@ -103,7 +103,7 @@ class MainPage(webapp2.RequestHandler):
             try:
                 poll_id = int(text[6:])
                 poll = Poll.get_by_id(poll_id)
-                if poll.admin_uid != uid:
+                if not poll or poll.admin_uid != uid:
                     raise ValueError
                 self.deliver_poll(uid, poll)
                 memcache.delete(uid)
