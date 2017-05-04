@@ -139,9 +139,9 @@ class MainPage(webapp2.RequestHandler):
         Respondent.populate_by_id(uid, **user_profile)
 
         imid = callback_query.inline_message_id
-        chat_id = callback_query.message.chat.id if imid else None
-        mid = callback_query.message.message_id if imid else None
         is_admin = not imid
+        chat_id = callback_query.message.chat.id if is_admin else None
+        mid = callback_query.message.message_id if is_admin else None
 
         try:
             params = callback_query.data.split()
