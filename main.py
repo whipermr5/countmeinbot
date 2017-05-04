@@ -77,8 +77,7 @@ class MainPage(webapp2.RequestHandler):
             return
 
         elif text == '/done' and responding_to and responding_to.startswith('OPT '):
-            poll_id = int(responding_to[4:])
-            poll = Poll.get_by_id(poll_id)
+            poll = Poll.get_by_id(int(responding_to[4:]))
             if not poll.options:
                 backend.send_message(chat_id=uid, text=self.PREMATURE_DONE)
                 return
@@ -100,8 +99,7 @@ class MainPage(webapp2.RequestHandler):
 
         elif text.startswith('/view_'):
             try:
-                poll_id = int(text[6:])
-                poll = Poll.get_by_id(poll_id)
+                poll = Poll.get_by_id(int(text[6:]))
                 if not poll or poll.admin_uid != uid:
                     raise ValueError
                 self.deliver_poll(uid, poll)
@@ -110,16 +108,14 @@ class MainPage(webapp2.RequestHandler):
 
         elif responding_to == 'START':
             new_poll_key = Poll.new(admin_uid=uid, title=text).put()
-            poll_id = new_poll_key.id()
             bold_title = util.make_html_bold_first_line(text)
             backend.send_message(chat_id=uid, text=self.FIRST_OPTION.format(bold_title),
                                  parse_mode='HTML')
-            memcache.set(uid, value='OPT {}'.format(poll_id), time=3600)
+            memcache.set(uid, value='OPT {}'.format(new_poll_key.id()), time=3600)
             return
 
         elif responding_to and responding_to.startswith('OPT '):
-            poll_id = int(responding_to[4:])
-            poll = Poll.get_by_id(poll_id)
+            poll = Poll.get_by_id(int(responding_to[4:]))
             poll.options.append(Option(text))
             poll.put()
             if len(poll.options) < 10:
