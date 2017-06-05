@@ -12,7 +12,7 @@ from secrets import BOT_TOKEN
 import webapp2
 from google.appengine.api import memcache
 from google.appengine.runtime import apiproxy_errors
-from urllib3.contrib.appengine import AppEnginePlatformWarning
+from telegram.vendor.ptb_urllib3.urllib3.contrib.appengine import AppEnginePlatformWarning
 
 warnings.simplefilter("ignore", AppEnginePlatformWarning)
 
