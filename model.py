@@ -4,10 +4,10 @@ from collections import OrderedDict
 
 import util
 
-from google.appengine.ext import ndb
-from telegram import InlineKeyboardMarkup, InlineKeyboardButton
+#from google.appengine.ext import ndb
+#from telegram import InlineKeyboardMarkup, InlineKeyboardButton
 
-class User(ndb.Model):
+class User():
     first_name = ndb.TextProperty()
     last_name = ndb.TextProperty()
     username = ndb.StringProperty(indexed=False)
