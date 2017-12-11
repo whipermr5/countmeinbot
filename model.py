@@ -4,10 +4,10 @@ from collections import OrderedDict
 
 import util
 
-#from google.appengine.ext import ndb
-#from telegram import InlineKeyboardMarkup, InlineKeyboardButton
+from google.appengine.ext import ndb
+from telegram import InlineKeyboardMarkup, InlineKeyboardButton
 
-class User():
+class User(ndb.Model):
     first_name = ndb.TextProperty()
     last_name = ndb.TextProperty()
     username = ndb.StringProperty(indexed=False)
@@ -154,4 +154,4 @@ class Option(object):
         return title + '\n' + name_list
 
     def generate_name_list(self):
-        return '\n'.join([first_name for first_name, _ in self.people.values()])
+        return '\n'.join([ ('['+ str(idx+1) +'.] ' + first_name) for idx, first_name in enumerate(self.people.values()) ])
