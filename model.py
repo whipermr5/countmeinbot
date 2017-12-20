@@ -149,9 +149,9 @@ class Option(object):
         return u'Your name was {} {}!'.format(action, self.title)
 
     def render_text(self):
-        title = util.make_html_bold(self.title)
+        title = util.make_html_bold(self.title) + "|  Number of Votes: " + str(len(people))
         name_list = util.strip_html_symbols(self.generate_name_list())
         return title + '\n' + name_list
 
     def generate_name_list(self):
-        return '\n'.join([ ('['+ str(idx+1) +'.] ' + first_name) for idx, first_name in enumerate(self.people.values()) ])
+        return '\n'.join([first_name for first_name, _ in self.people.values()])
