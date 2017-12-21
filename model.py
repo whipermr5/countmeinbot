@@ -149,7 +149,10 @@ class Option(object):
         return u'Your name was {} {}!'.format(action, self.title)
 
     def render_text(self):
-        title = util.make_html_bold(self.title) + "|  Number of Votes: " + str(len(people))
+        if(len(people) == 0):
+            title = util.make_html_bold(self.title)
+        else:
+            title = util.make_html_bold(self.title) + " ( " + str(len(people)) + " " + util.make_emoji_for_option() + " )"
         name_list = util.strip_html_symbols(self.generate_name_list())
         return title + '\n' + name_list
 
