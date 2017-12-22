@@ -90,7 +90,7 @@ class Poll(ndb.Model):
     def render_text(self):
         header = [util.make_html_bold_first_line(self.title)]
         body = [option.render_text() for option in self.options]
-        footer = [u'\U0001f465 ' + self.generate_respondents_summary()]
+        footer = [util.emoji_people_unicode() + self.generate_respondents_summary()]
         return u'\n\n'.join(header + body + footer)
 
     def render_html(self):
@@ -149,10 +149,9 @@ class Option(object):
         return u'Your name was {} {}!'.format(action, self.title)
 
     def render_text(self):
-        if(len(people) == 0):
-            title = util.make_html_bold(self.title)
-        else:
-            title = util.make_html_bold(self.title) + " ( " + str(len(people)) + " " + util.make_emoji_for_option() + " )"
+        title = util.make_html_bold(self.title)
+        if people:
+            title += ' ({} {})'.format(len(people), util.emoji_people_unicode())
         name_list = util.strip_html_symbols(self.generate_name_list())
         return title + '\n' + name_list
 
