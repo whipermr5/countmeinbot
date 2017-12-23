@@ -90,7 +90,7 @@ class Poll(ndb.Model):
     def render_text(self):
         header = [util.make_html_bold_first_line(self.title)]
         body = [option.render_text() for option in self.options]
-        footer = [util.emoji_people_unicode() + self.generate_respondents_summary()]
+        footer = [util.emoji_people_unicode() + ' ' + self.generate_respondents_summary()]
         return u'\n\n'.join(header + body + footer)
 
     def render_html(self):

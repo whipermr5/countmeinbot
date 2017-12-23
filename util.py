@@ -47,4 +47,4 @@ def make_html_bold_first_line(text):
 
 def emoji_people_unicode():
     # Emoji taken from http://unicode.org/emoji/charts/full-emoji-list.html
-    return u'\U0001f465 '
+    return u'\U0001f465'
