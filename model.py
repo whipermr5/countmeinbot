@@ -150,8 +150,8 @@ class Option(object):
 
     def render_text(self):
         title = util.make_html_bold(self.title)
-        if people:
-            title += ' ({} {})'.format(len(people), util.emoji_people_unicode())
+        if self.people:
+            title += ' ({} {})'.format(len(self.people), util.emoji_people_unicode())
         name_list = util.strip_html_symbols(self.generate_name_list())
         return title + '\n' + name_list
 
