@@ -44,3 +44,7 @@ def make_html_bold_first_line(text):
     if len(text_split) > 1:
         output += '\n' + strip_html_symbols(text_split[1])
     return output
+
+def emoji_people_unicode():
+    # Emoji taken from http://unicode.org/emoji/charts/full-emoji-list.html
+    return u'\U0001f465'
