@@ -86,7 +86,7 @@ class MainPage(webapp2.RequestHandler):
         elif text == '/polls':
             header = [util.make_html_bold('Your polls')]
 
-            recent_polls = Poll.query(Poll.admin_uid == uid).order(-Poll.created).fetch(50)
+            recent_polls = Poll.query(Poll.admin_uid == uid).order(-Poll.created).fetch(30)
             body = [u'{}. {}'.format(i + 1, poll.generate_poll_summary_with_link()) for i, poll
                     in enumerate(recent_polls)]
 
