@@ -22,6 +22,7 @@ class FrontPage(webapp2.RequestHandler):
         self.response.write('CountMeIn Bot backend running...')
 
 class MainPage(webapp2.RequestHandler):
+    TITLE_MAX_LENGTH = 3072
     NEW_POLL = 'Let\'s create a new poll. First, send me the title.'
     FIRST_OPTION = u'New poll: \'{}\'\n\nPlease send me the first answer option.'
     NEXT_OPTION = 'Good. Now send me another answer option, or /done to finish.'
@@ -33,6 +34,8 @@ class MainPage(webapp2.RequestHandler):
            'individual friends.\n\nSend /polls to manage your existing polls.'
     ERROR_PREMATURE_DONE = 'Sorry, a poll needs to have at least one option to work.'
     ERROR_OVER_QUOTA = 'Sorry, CountMeIn Bot is overloaded right now. Please try again later!'
+    ERROR_TITLE_TOO_LONG = 'Sorry, please enter a shorter title ' + \
+                           '(maximum {} characters).'.format(TITLE_MAX_LENGTH)
     THUMB_URL = 'https://countmeinbot.appspot.com/thumb.jpg'
 
     update = None
@@ -106,6 +109,9 @@ class MainPage(webapp2.RequestHandler):
                 backend.send_message(chat_id=uid, text=self.HELP)
 
         elif responding_to == 'START':
+            if len(text) > self.TITLE_MAX_LENGTH:
+                backend.send_message(chat_id=uid, text=self.ERROR_TITLE_TOO_LONG)
+                return
             new_poll_key = Poll.new(admin_uid=uid, title=text).put()
             bold_title = util.make_html_bold_first_line(text)
             backend.send_message(chat_id=uid, text=self.FIRST_OPTION.format(bold_title),
