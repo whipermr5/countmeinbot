@@ -13,7 +13,8 @@ class TelegramPage(webapp2.RequestHandler):
     RECOGNISED_ERRORS = ['u\'Bad Request: message is not modified\'',
                          'u\'Bad Request: message to edit not found\'',
                          'u\'Bad Request: MESSAGE_ID_INVALID\'',
-                         'Message is not modified',
+                         'Message is not modified: specified new message content and reply markup are exactly the same as a current content and reply markup of the message',
+                         'Message to edit not found',
                          'Message_id_invalid']
     RECOGNISED_ERROR_URLFETCH = 'urlfetch.Fetch()'
 
