@@ -3,6 +3,8 @@
 from collections import OrderedDict
 
 import util
+import pickle
+import json
 
 from google.appengine.ext import ndb
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton
@@ -34,6 +36,19 @@ class Respondent(User):
     username = ndb.StringProperty(indexed=True)
     updated = ndb.DateTimeProperty(auto_now=True, indexed=True)
 
+class ToJsonProperty(ndb.BlobProperty):
+    def _from_base_type(self, value):
+        try:
+            json_opt = json.loads(value)
+            return Option(title=json_opt['title'], people=OrderedDict(json_opt['people']))
+        except:
+            opt = pickle.loads(value)
+            return opt
+
+    def _to_base_type(self, opt):
+        json_opt = {'title': opt.title, 'people': opt.people.items()}
+        return json.dumps(json_opt)
+
 class Poll(ndb.Model):
     admin_uid = ndb.StringProperty()
     title = ndb.TextProperty()
@@ -41,7 +56,7 @@ class Poll(ndb.Model):
     active = ndb.BooleanProperty(default=True)
     multi = ndb.BooleanProperty(default=True, indexed=False)
 
-    options = ndb.PickleProperty(repeated=True)
+    options = ToJsonProperty(repeated=True)
 
     created = ndb.DateTimeProperty(auto_now_add=True)
     updated = ndb.DateTimeProperty(auto_now=True, indexed=False)
