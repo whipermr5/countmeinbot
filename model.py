@@ -46,9 +46,8 @@ class ToJsonProperty(ndb.BlobProperty):
             return opt
 
     def _to_base_type(self, opt):
-        # json_opt = {'title': opt.title, 'people': opt.people.items()}
-        # return json.dumps(json_opt)
-        return pickle.dumps(opt)
+        json_opt = {'title': opt.title, 'people': opt.people.items()}
+        return json.dumps(json_opt)
 
 class Poll(ndb.Model):
     admin_uid = ndb.StringProperty()
