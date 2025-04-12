@@ -267,7 +267,7 @@ APP = webapp2.WSGIApplication([
     webapp2.Route('/', FrontPage),
     webapp2.Route('/' + BOT_TOKEN, MainPage),
     webapp2.Route('/telegram/<method_name>', backend.TelegramPage),
-    webapp2.Route('/migrate', 'admin.MigratePage'),
+    webapp2.Route('/migrate/<pid>', 'admin.MigratePage'),
     webapp2.Route('/polls', 'admin.PollsPage'),
     webapp2.Route('/poll/<pid>', 'admin.PollPage'),
 ], debug=True)

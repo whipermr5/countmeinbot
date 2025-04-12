@@ -69,6 +69,13 @@ class Poll(ndb.Model):
 
     @staticmethod
     @ndb.transactional
+    def migrate(poll_id):
+        poll = Poll.get_by_id(poll_id)
+        poll.options = poll.options
+        poll.put()
+
+    @staticmethod
+    @ndb.transactional
     def toggle(poll_id, opt_id, uid, user_profile):
         poll = Poll.get_by_id(poll_id)
         if not poll:
