@@ -36,7 +36,7 @@ class Respondent(User):
     username = ndb.StringProperty(indexed=True)
     updated = ndb.DateTimeProperty(auto_now=True, indexed=True)
 
-class ToJsonProperty(ndb.BlobProperty):
+class ToJsonProperty(ndb.TextProperty):
     def _from_base_type(self, value):
         try:
             json_opt = json.loads(value)
