@@ -1,8 +1,8 @@
 queue:
 - name: outbox
-  rate: 160/s
-  bucket_size: 80
-  max_concurrent_requests: 160
+  rate: 20/s
+  bucket_size: 40
+  max_concurrent_requests: 20
   retry_parameters:
     task_retry_limit: 100
     task_age_limit: 3d
